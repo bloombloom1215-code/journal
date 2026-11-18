@@ -39,6 +39,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* 입력칸 초록 테두리는 칸 안쪽에 그림 → 스크롤 칸 가장자리에서 잘리지 않음 */
+input:focus,input:focus-visible,textarea:focus,textarea:focus-visible,select:focus,select:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .num{font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .wrap{max-width:1180px;margin:0 auto;width:100%}
 
@@ -1127,7 +1129,7 @@ function doRender(){
   $('#homeLabel').textContent = wide ? '캘린더' : '할 일';
   document.querySelectorAll('.tabs button').forEach(b => { if (b.dataset.tab===S.tab) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
   $('#fab').hidden = wide || S.tab !== 'home' || (S.tab === 'home' && (S.vn === 'week' || S.vn === 'year'));
-  const main = $('#main'), scroll = window.scrollY;
+  const main = $('#main'), scroll = document.body.classList.contains('fill') ? 0 : window.scrollY;
   const dScroll = $('.drawer') ? $('.drawer').scrollTop : 0;
   if (!S.loaded){ main.innerHTML = `<div class="panel"><div class="empty">기록을 불러오는 중입니다…</div></div>`; return; }
   const banner = !CONN ? `<div class="notice">구글 시트 저장소가 아직 연결되지 않았어요. 지금 입력한 내용은 이 기기에만 저장돼요. <button class="btn sm" data-act="go-conn">설정에서 연결하기</button></div>` : (CONN.env === 'test' ? `<div class="notice">테스트 시트에 연결되어 있어요. 실제로 쓰려면 설정에서 '실사용'으로 바꾸세요.</div>` : '');
@@ -1782,7 +1784,7 @@ function drawEditor(){
       <div class="btns">${!isNew ? `<button class="btn ${sheetState.arm?'armed':'danger'}" data-act="archive">${it.archived?'다시 보이기':sheetState.arm?'한 번 더 누르면 숨김':'숨기기'}</button>` : ''}</div>
       <div class="btns"><button class="btn" data-act="close">취소</button><button class="btn pri" data-act="save">저장</button></div>
     </div></div></div>`;
-  if (isNew) setTimeout(()=>{ const t=$('#f_title'); if(t && !t.value) t.focus(); }, 30);
+  if (isNew) setTimeout(()=>{ const t=$('#f_title'); if(t && !t.value) t.focus({ preventScroll:true }); }, 30);
 }
 document.addEventListener('change', e => { if (e.target.dataset && e.target.dataset.redraw && sheetState){ readDraft(); drawEditor(); } });
 function readDraft(){
@@ -1794,7 +1796,7 @@ function readDraft(){
 }
 function saveItem(){
   const d = readDraft();
-  if (!d.title){ toast('이름을 입력해 주세요.'); $('#f_title').focus(); return; }
+  if (!d.title){ toast('이름을 입력해 주세요.'); $('#f_title').focus({ preventScroll:true }); return; }
   if (d.type==='recurring' && d.freq!=='weekly' && !(d.day>=1 && d.day<=31)){ toast('결제일은 1~31 사이로 입력해 주세요.'); return; }
   if (d.type==='deadline' && !d.due){ toast('만료일을 골라 주세요.'); return; }
   if (d.type==='event' && !d.date){ toast('날짜를 골라 주세요.'); return; }
@@ -1857,7 +1859,7 @@ document.addEventListener('click', async e => {
     case 'tag-color': readTags(); sheetState.list[+el.dataset.i].c = el.dataset.v; drawTags(); break;
     case 'tag-show': readTags(); sheetState.list[+el.dataset.i].show = el.dataset.v; drawTags(); break;
     case 'tag-add': readTags(); sheetState.list.push({ id:'t'+newId().slice(0,8), label:'새 태그', c:PALETTE[sheetState.list.length % PALETTE.length], show:'day' }); sheetState.arm = null; drawTags();
-      setTimeout(()=>{ const n = document.getElementById('tg_n_'+(sheetState.list.length-1)); if (n){ n.focus(); n.select(); } }, 30); break;
+      setTimeout(()=>{ const n = document.getElementById('tg_n_'+(sheetState.list.length-1)); if (n){ n.focus({ preventScroll:true }); n.select(); } }, 30); break;
     case 'tag-del': { readTags(); const i = +el.dataset.i; if (sheetState.arm !== i){ const id = sheetState.list[i].id, used = Object.values(S.blocks).filter(b=>b.cat===id).length;
         sheetState.arm = i; sheetState.usedWarn = used ? `'${sheetState.list[i].label}' 태그를 쓰는 계획 ${used}개는 '기타'로 바뀝니다.` : ''; drawTags(); break; }
       sheetState.list.splice(i,1); sheetState.arm = null; sheetState.usedWarn = ''; drawTags(); break; }
@@ -1966,7 +1968,7 @@ document.addEventListener('click', async e => {
     case 'todo-toggle': { const t = (S.todos||[]).find(x => x.id === el.dataset.id); if (t){ t.done = el.checked; t.doneOn = el.checked ? k : null; doRender(); } break; }
     case 'todo-del': S.todos = (S.todos||[]).filter(x => x.id !== el.dataset.id); if (S.placing === 't:' + el.dataset.id) S.placing = null; doRender(); break;
     case 'cond-tag': { const d = getDay(k), id = el.dataset.id; const cond = d.cond.includes(id) ? d.cond.filter(x => x !== id) : [...d.cond, id]; saveDay(k, {cond}); break; }
-    case 'diary-open': S.diaryOpen = k; doRender(); { const ta = $('#diary'); if (ta && !ta.value) ta.focus(); } break;
+    case 'diary-open': S.diaryOpen = k; doRender(); { const ta = $('#diary'); if (ta && !ta.value) ta.focus({ preventScroll:true }); } break;
     case 'diary-close': if (el.dataset.bg && e.target !== el) break; flushDiary(); S.diaryOpen = null; doRender(); break;
     case 'cond-legend': S.condLegend = !S.condLegend; doRender(); break;
     case 'cond-edit': S.condEdit = !S.condEdit; doRender(); break;
@@ -2005,13 +2007,13 @@ document.addEventListener('click', async e => {
     case 'an-inc': S.anIncEx = el.checked; doRender(); break;
     case 'an-tag': S.anTag = el.dataset.id; doRender(); break;
     case 'rt-toggle': { const d = getDay(k), id = el.dataset.id; if (d.rt[id]) delete d.rt[id]; else d.rt[id] = true; saveDay(k, {rt:d.rt}); break; }
-    case 'rt-edit': S.rtEdit = !S.rtEdit; doRender(); if (S.rtEdit){ const ri = $('#rtInput'); if (ri) ri.focus(); } break;
+    case 'rt-edit': S.rtEdit = !S.rtEdit; doRender(); if (S.rtEdit){ const ri = $('#rtInput'); if (ri) ri.focus({ preventScroll:true }); } break;
     case 'rt-del': S.routines = (S.routines||[]).filter(r => r.id !== el.dataset.id); doRender(); break;
     case 'ph-del': { const id = el.dataset.id, idx = +el.dataset.i, arr = ePhIds(id).slice(), gone = arr.splice(idx, 1)[0]; S.ePhotos = { ...S.ePhotos, [id]: arr }; if (gone && !isTmpPhoto(gone) && CONN) api('POST', { action:'photoDel', id:gone }).catch(() => {});
       const d = getDay(k); if (d.cover && d.cover.e === id){ if (d.cover.i === idx) saveDay(k, {cover:null}, {render:false}); else if (d.cover.i > idx) saveDay(k, {cover:{ e:id, i:d.cover.i - 1 }}, {render:false}); } doRender(); break; }
     case 'ph-view': { const src = ePh(el.dataset.id)[+el.dataset.i]; if (!src) break; const lb = document.createElement('div'); lb.className = 'lightbox'; lb.innerHTML = `<img src="${src}" alt=""><button type="button" aria-label="닫기">×</button>`; lb.addEventListener('click', () => lb.remove()); document.body.appendChild(lb); break; }
     case 'ph-cover': saveDay(k, {cover:{ e:el.dataset.id, i:+el.dataset.i }}); toast('대표사진으로 정했어요.'); break;
-    case 'entry-add': { flushDiary(); const d = getDay(k), ents = d.entries; if (!ents.length) ents.push({ id:'e' + Date.now().toString(36), text:'' }); ents.push({ id:'e' + (Date.now()+1).toString(36), text:'' }); saveDay(k, {entries:ents}); setTimeout(() => { const all = document.querySelectorAll('textarea.dtext'); if (all.length) all[all.length-1].focus(); }, 0); break; }
+    case 'entry-add': { flushDiary(); const d = getDay(k), ents = d.entries; if (!ents.length) ents.push({ id:'e' + Date.now().toString(36), text:'' }); ents.push({ id:'e' + (Date.now()+1).toString(36), text:'' }); saveDay(k, {entries:ents}); setTimeout(() => { const all = document.querySelectorAll('textarea.dtext'); if (all.length) all[all.length-1].focus({ preventScroll:true }); }, 0); break; }
     case 'entry-del': { const id = el.dataset.id, d = getDay(k), e = d.entries.find(x => x.id === id);
       if (e && ((e.text||'').trim() || ePh(id).length) && !el.dataset.sure){ el.dataset.sure = '1'; el.textContent = '한 번 더 누르면 삭제'; break; }
       flushDiary(); const ents = getDay(k).entries.filter(x => x.id !== id); delete S.ePhotos[id];
@@ -2064,7 +2066,7 @@ function showExport(data){ const o = $('#exportOut'); if (o) o.innerHTML = `<pre
 document.addEventListener('submit', e => {
   if (e.target.closest('[data-form="sub"]')){
     e.preventDefault(); readBlock(); const t = ($('#b_newsub').value||'').trim(); if (!t) return;
-    sheetState.draft.subs.push({t, d:false}); drawBlock(); const n = $('#b_newsub'); if (n) n.focus(); return;
+    sheetState.draft.subs.push({t, d:false}); drawBlock(); const n = $('#b_newsub'); if (n) n.focus({ preventScroll:true }); return;
   }
   if (e.target.closest('[data-form="check"]')){
     e.preventDefault(); const nm = ($('#ckNewName').value||'').trim(); if (!nm){ toast('항목 이름을 입력해 주세요.'); return; }
@@ -2079,12 +2081,12 @@ document.addEventListener('submit', e => {
     e.preventDefault(); const em = firstGrapheme($('#ceNewEmoji').value), lb = ($('#ceNewLabel').value||'').trim();
     if (!em || !lb){ toast('이모지와 이름을 모두 입력해 주세요.'); return; }
     S.condTags = [...(S.condTags||[]), { id:'ct'+Date.now().toString(36), emoji:em, label:lb }]; doRender();
-    const ne = $('#ceNewEmoji'); if (ne) ne.focus(); return;
+    const ne = $('#ceNewEmoji'); if (ne) ne.focus({ preventScroll:true }); return;
   }
   if (e.target.closest('[data-form="routine"]')){
     e.preventDefault(); const inp = $('#rtInput'), name = (inp.value||'').trim(); if (!name) return;
     S.routines = [...(S.routines||[]), { id:'rt'+Date.now().toString(36), name }]; S.rtEdit = true; doRender();
-    const ni = $('#rtInput'); if (ni) ni.focus(); return;
+    const ni = $('#rtInput'); if (ni) ni.focus({ preventScroll:true }); return;
   }
   if (e.target.closest('[data-form="wpsim"]')){
     e.preventDefault(); const rid = $('#wsimR').value, d = $('#wsimD').value, r = wRoutine(rid); if (!d || !r) return;
@@ -2094,7 +2096,7 @@ document.addEventListener('submit', e => {
   if (e.target.closest('[data-form="todo"]')){
     e.preventDefault(); const inp = $('#todoInput'), text = (inp.value||'').trim(); if (!text) return;
     S.todos = [...(S.todos||[]), { id:'td' + Date.now().toString(36), text, done:false, doneOn:null }]; inp.value = ''; doRender();
-    const ni = $('#todoInput'); if (ni) ni.focus(); return;
+    const ni = $('#todoInput'); if (ni) ni.focus({ preventScroll:true }); return;
   }
 });
 document.addEventListener('input', e => {
@@ -2157,6 +2159,16 @@ document.addEventListener('change', async e => {
     catch(err){ /* 실패한 사진은 tmp로 남아 화면에만 보임 */ }
   }
   render(); schedulePush(0); toast(ok === tmps.length ? `사진 ${ok}장을 저장했어요.` : `사진 ${tmps.length - ok}장을 저장하지 못했어요. 연결을 확인하고 다시 붙여 주세요.`);
+});
+/* 아이패드 넓은 화면(칸 나눔)은 페이지 자체가 움직이지 않게 고정: 입력칸을 눌러도 화면이 위로 끌려 올라가지 않음 */
+let scrollFix = 0;
+window.addEventListener('scroll', () => {
+  if (!document.body.classList.contains('fill') || !window.scrollY) return;
+  cancelAnimationFrame(scrollFix); scrollFix = requestAnimationFrame(() => window.scrollTo(0, 0));
+}, { passive:true });
+document.addEventListener('focusin', e => {
+  if (!document.body.classList.contains('fill') || !e.target.matches('input, textarea, select')) return;
+  [0, 120, 350].forEach(t => setTimeout(() => { if (window.scrollY) window.scrollTo(0, 0); }, t));
 });
 let splitDrag = null, lastSplitTap = { el:null, t:0 };
 document.addEventListener('pointerdown', e => {
@@ -2374,7 +2386,7 @@ function drawBlock(){
         ${!isNew && !b.seriesId ? `<button class="btn ${sheetState.arm?'armed':'danger'}" data-act="blk-del">${sheetState.arm?'한 번 더 누르면 삭제':(sheetState.scope==='all' && sheetState.sibs && sheetState.sibs.length ? `이번 주 ${sheetState.sibs.length+1}일 삭제` : '삭제')}</button>` : ''}</div>
       <div class="btns"><button class="btn" data-act="close">취소</button><button class="btn pri" data-act="blk-save">저장</button></div>
     </div></div></div>`;
-  if (isNew) setTimeout(() => { const t = $('#b_title'); if (t && !t.value) t.focus(); }, 60);
+  if (isNew) setTimeout(() => { const t = $('#b_title'); if (t && !t.value) t.focus({ preventScroll:true }); }, 60);
 }
 document.addEventListener('input', e => { if (e.target.id === 'ps_name'){ const w = $('#ps_warn'); if (w) w.hidden = !PRESETS.some(q=>q.name===e.target.value.trim()); sheetState.name = e.target.value; } });
 document.addEventListener('input', e => { if (sheetState && sheetState.kind === 'blk' && (e.target.id === 'r_total' || e.target.id === 'r_before')){ readBlock(); const h = $('#r_hint'); if (h) h.innerHTML = countHint(sheetState.draft); } });
@@ -3034,7 +3046,7 @@ function drawLog(){
     <div class="foot"><div class="btns">${st.i != null ? `<button class="btn ${st.arm?'armed':'danger'}" data-act="lg-del">${st.arm?'한 번 더 누르면 삭제':'삭제'}</button>` : ''}</div>
       <div class="btns"><button class="btn" data-act="lg-back">${st.back ? '목록으로' : '취소'}</button><button class="btn pri" data-act="lg-save">${st.i == null ? '+1 기록' : '저장'}</button></div></div>
   </div></div>`;
-  setTimeout(() => { const t = $('#lg_title'); if (t && st.i == null) t.focus(); }, 60);
+  setTimeout(() => { const t = $('#lg_title'); if (t && st.i == null) t.focus({ preventScroll:true }); }, 60);
 }
 function saveLog(){
   const st = sheetState, m = S.projects[st.pid].ms.find(x => x.id === st.mid), g = id => document.getElementById(id);
@@ -3358,7 +3370,7 @@ function drawPresetSave(){
       <div class="notice" style="margin:0"><b>${esc(d.title || '(할 일 이름 없음)')}</b><br>${esc(presetSummary(q))}</div>
       <div class="hint">요일·시간·태그·표시 범위·반복·세부 할 일까지 그대로 저장됩니다. 완료 체크와 메모는 저장하지 않습니다.</div></div>`,
     `<span></span><div class="btns"><button class="btn" data-act="sub-cancel">취소</button><button class="btn pri" data-act="ps-save">저장</button></div>`);
-  setTimeout(()=>{ const n = $('#ps_name'); if (n){ n.focus(); n.select(); } }, 60);
+  setTimeout(()=>{ const n = $('#ps_name'); if (n){ n.focus({ preventScroll:true }); n.select(); } }, 60);
 }
 function savePresetNow(){
   const name = ($('#ps_name').value||'').trim(); if (!name){ toast('버튼 이름을 입력해 주세요.'); return; }
