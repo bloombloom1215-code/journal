@@ -1,4 +1,10 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#2f6f5e"><link rel="apple-touch-icon" href="icons/journal-180.png"><script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{scope:"./"}).catch(()=>{}))</script></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:var(--sab)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><style>:root{--sab:env(safe-area-inset-bottom,0px)}</style><script>
+/* 안드로이드 앱 모드(삼성인터넷 등)에서 화면이 하단 내비게이션 바 아래까지 그려지는데 여백 값(safe-area)이 0으로 오는 경우 보정 */
+(function(){function fix(){try{var r=document.documentElement,p=document.createElement('div');p.style.cssText='position:fixed;bottom:0;height:env(safe-area-inset-bottom,0px);visibility:hidden';document.documentElement.appendChild(p);var sa=p.offsetHeight;p.remove();
+var app=matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches,and=/Android/i.test(navigator.userAgent);
+var under=app&&and&&sa===0&&(screen.height-innerHeight)<24;r.style.setProperty('--sab',under?'48px':'env(safe-area-inset-bottom,0px)')}catch(e){}}
+fix();addEventListener('resize',fix);addEventListener('orientationchange',function(){setTimeout(fix,300)})})();
+</script><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#2f6f5e"><link rel="apple-touch-icon" href="icons/journal-180.png"><script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{scope:"./"}).catch(()=>{}))</script></head><body>
 <title>저널</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -35,7 +41,7 @@
 html{height:100%;background:var(--bg)}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
-  padding-block:0 calc(84px + env(safe-area-inset-bottom,0px))}
+  padding-block:0 calc(84px + var(--sab))}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -54,14 +60,14 @@ input:focus,input:focus-visible,textarea:focus,textarea:focus-visible,select:foc
 .topright{display:flex;align-items:center;gap:14px}
 
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
-  padding:6px max(10px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px))}
+  padding:6px max(10px,env(safe-area-inset-right,0px)) calc(6px + var(--sab)) max(10px,env(safe-area-inset-left,0px))}
 .tabs .in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
 .tabs button{border:0;background:none;padding:6px 0;border-radius:10px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.72rem;color:var(--muted)}
 .tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .tabs button[aria-current="page"]{color:var(--accent);font-weight:600}
 
 @media (min-width:768px) and (min-height:600px){
-  body{padding-block:0 max(12px,env(safe-area-inset-bottom,0px))}
+  body{padding-block:0 max(12px,var(--sab))}
   .wrap{max-width:none}
   .top{align-items:center;padding-block:10px 10px}
   .top h1{font-size:1.15rem}
@@ -198,7 +204,7 @@ div.cell:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 /* ===== Drawer ===== */
 .dscrim{position:fixed;inset:0;z-index:30;background:rgba(10,15,12,.28)}
 .drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);z-index:31;background:var(--surface);box-shadow:var(--shadow);overflow:auto;
-  padding:calc(14px + env(safe-area-inset-top,0px)) max(18px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) 18px}
+  padding:calc(14px + env(safe-area-inset-top,0px)) max(18px,env(safe-area-inset-right,0px)) calc(24px + var(--sab)) 18px}
 .drawer .dtop{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
 @media (prefers-reduced-motion:no-preference){.drawer.enter{animation:slide .22s ease-out}@keyframes slide{from{transform:translateX(30px);opacity:.5}}}
 
@@ -797,14 +803,14 @@ body.fill .yw{flex:1}
 .irow .t small{display:block;color:var(--muted);font-size:.78rem}
 .irow.arch{opacity:.5}
 
-.fab{position:fixed;right:max(18px,calc(env(safe-area-inset-right,0px) + 12px));bottom:calc(82px + env(safe-area-inset-bottom,0px));z-index:21;
+.fab{position:fixed;right:max(18px,calc(env(safe-area-inset-right,0px) + 12px));bottom:calc(82px + var(--sab));z-index:21;
   width:52px;height:52px;border-radius:16px;border:0;background:var(--accent);color:var(--accent-fg);font-size:1.6rem;box-shadow:var(--shadow)}
 
 /* Sheet */
 .scrim{position:fixed;inset:0;z-index:40;background:rgba(10,15,12,.45);display:flex;align-items:flex-end;justify-content:center}
 @media (min-width:700px){.scrim{align-items:center}}
 .sheet{background:var(--surface);width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:18px 18px 0 0;box-shadow:var(--shadow);
-  padding:18px max(18px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px))}
+  padding:18px max(18px,env(safe-area-inset-right,0px)) calc(18px + var(--sab)) max(18px,env(safe-area-inset-left,0px))}
 @media (min-width:700px){.sheet{border-radius:18px}}
 .sheet h3{margin:0 0 12px;font-family:var(--f-display);font-size:1.2rem}
 .form{display:grid;gap:12px}
@@ -818,7 +824,7 @@ body.fill .yw{flex:1}
 .sheet .foot{display:flex;justify-content:space-between;gap:8px;margin-top:16px;flex-wrap:wrap}
 .loglist{font-size:.85rem}
 .loglist div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--line)}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0px));z-index:50;background:var(--fg);color:var(--bg);
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(150px + var(--sab));z-index:50;background:var(--fg);color:var(--bg);
   padding:9px 16px;border-radius:10px;font-size:.88rem;max-width:calc(100% - 32px)}
 pre.out{white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:10px;font-size:.72rem}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .22s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}}}

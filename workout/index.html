@@ -1,4 +1,10 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#D9412A"><link rel="apple-touch-icon" href="../icons/workout-180.png"><script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{scope:"./"}).catch(()=>{}))</script></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:var(--sab)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><style>:root{--sab:env(safe-area-inset-bottom,0px)}</style><script>
+/* 안드로이드 앱 모드(삼성인터넷 등)에서 화면이 하단 내비게이션 바 아래까지 그려지는데 여백 값(safe-area)이 0으로 오는 경우 보정 */
+(function(){function fix(){try{var r=document.documentElement,p=document.createElement('div');p.style.cssText='position:fixed;bottom:0;height:env(safe-area-inset-bottom,0px);visibility:hidden';document.documentElement.appendChild(p);var sa=p.offsetHeight;p.remove();
+var app=matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches,and=/Android/i.test(navigator.userAgent);
+var under=app&&and&&sa===0&&(screen.height-innerHeight)<24;r.style.setProperty('--sab',under?'48px':'env(safe-area-inset-bottom,0px)')}catch(e){}}
+fix();addEventListener('resize',fix);addEventListener('orientationchange',function(){setTimeout(fix,300)})})();
+</script><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#D9412A"><link rel="apple-touch-icon" href="../icons/workout-180.png"><script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{scope:"./"}).catch(()=>{}))</script></head><body>
 <title>운동</title>
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="운동">
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -30,12 +36,12 @@ button:disabled{opacity:.4;cursor:default}
 .num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
 
 .app{min-height:100%}
-main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px calc(96px + env(safe-area-inset-bottom,0px))}
+main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px calc(96px + var(--sab))}
 .wrap{max-width:min(1100px,100%);margin:0 auto;display:flex;flex-direction:column;gap:16px}
 
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
   display:grid;grid-template-columns:repeat(6,1fr);
-  padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+  padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + var(--sab)) max(8px,env(safe-area-inset-left,0px))}
 .tab{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:54px;justify-content:center;border:0;background:none;color:var(--muted);font-size:12px;border-radius:10px}
 .tab svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .tab.on{color:var(--accent);font-weight:700}
@@ -116,7 +122,7 @@ select.inp{padding-right:8px}
 .seg button{min-height:40px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-weight:500}
 .seg button.on{background:var(--surface);color:var(--ink);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.12)}
 textarea.inp{padding:12px;min-height:80px;resize:vertical}
-.sticky-foot{position:sticky;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:5}
+.sticky-foot{position:sticky;bottom:calc(76px + var(--sab));z-index:5}
 @media (min-width:900px){.sticky-foot{bottom:16px}}
 
 /* interval timer */
@@ -238,13 +244,13 @@ textarea.inp{padding:12px;min-height:80px;resize:vertical}
 .blog .date{font-family:var(--f-display);font-size:30px;line-height:1.1}
 .blog .foot{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
 .capture{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow-y:auto;
-  padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+  padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + var(--sab)) max(16px,env(safe-area-inset-left,0px))}
 .capture .blog{margin:auto}
 
 /* sheet */
 .backdrop{position:fixed;inset:0;z-index:40;background:rgba(10,12,16,.45);display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--surface);width:100%;max-width:520px;border-radius:20px 20px 0 0;max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px;
-  padding:20px max(18px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px))}
+  padding:20px max(18px,env(safe-area-inset-right,0px)) calc(20px + var(--sab)) max(18px,env(safe-area-inset-left,0px))}
 @media (min-width:640px){.backdrop{align-items:center}.sheet{border-radius:20px}}
 .opt{display:flex;align-items:center;gap:12px;min-height:56px;border:1px solid var(--line);border-radius:12px;padding:8px 14px;background:var(--surface);text-align:left;width:100%}
 .opt .box{width:24px;height:24px;border-radius:7px;border:1.5px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;font-size:14px}
@@ -258,7 +264,7 @@ textarea.inp{padding:12px;min-height:80px;resize:vertical}
 .colors button{width:38px;height:38px;border-radius:50%;border:3px solid transparent;box-shadow:inset 0 0 0 2px var(--surface)}
 .colors button.on{border-color:var(--ink)}
 
-#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;max-width:calc(100% - 32px);text-align:center}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(92px + var(--sab));z-index:60;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;max-width:calc(100% - 32px);text-align:center}
 .note{font-size:13px;color:var(--muted);background:var(--sunk);border-radius:12px;padding:12px 14px;margin:0}
 .empty{text-align:center;color:var(--muted);padding:20px 0;font-size:14px}
 @media (prefers-reduced-motion:no-preference){.sheet.anim{animation:up .22s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}}}
