@@ -337,7 +337,7 @@ body.fill .dayw{flex:1}
 .clrow{display:flex;align-items:center;gap:8px;padding:4px 2px;font-size:.88rem;border-top:1px solid var(--line)}
 .clrow.on{font-weight:600;color:var(--bad)}
 .cle{font-size:1.15rem;width:24px;text-align:center}
-.condwrap,.condedit{margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed var(--line)}
+.condedit{margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed var(--line)}
 .cemos{display:flex;flex-wrap:wrap;gap:6px}
 .cemo-btn{width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-size:1.35rem;line-height:1;padding:0;filter:grayscale(.55);opacity:.75}
 .cemo-btn[aria-pressed="true"]{filter:none;opacity:1;background:var(--accent-soft);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
@@ -502,7 +502,17 @@ body.fill .dayw{flex:1}
 .dsplan .plan li{min-height:30px}
 .dayw > .dayw-side{overflow:hidden}
 .dsboard{display:flex;flex-direction:column;gap:6px;overflow:auto;min-height:0;flex:0 1 auto;overscroll-behavior:contain;padding-right:2px}
-.dayw .dsboard{flex:1 1 0}
+.dayw .dsboard{flex:2 1 0}
+.dayw .dsboard:not(:has(.dscond)){max-height:none !important}
+.dayw .dsdiary2{flex:4 1 0;min-height:0;overflow:auto;display:flex;flex-direction:column}
+.dayw .dscond[data-pane]{flex:5 1 0}
+.dsdiary2 > .dshead{position:sticky;top:-6px;z-index:3;background:var(--surface);margin:-6px -10px 4px;padding:6px 10px 4px}
+.dsdiary2 .dshead .link2{border:0;background:none;color:var(--accent);font-size:.78rem;font-weight:600;padding:2px 4px}
+.dsdiary2 .dentries{gap:8px;overflow:visible}
+.dsdiary2 .dentry{padding:8px}
+.dsdiary2 .dentry .ph,.dsdiary2 .dentry .phadd{width:64px;height:64px}
+.dsdiary2 .dtext{min-height:64px;font-size:.92rem}
+.dsdiary2 .daddentry{padding:8px}
 .dbar{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:8px 10px;min-height:46px;color:var(--fg);flex:none}
 .dbar .dbt{font-size:.78rem;color:var(--muted);font-weight:600;white-space:nowrap}
 .dbar .dbp{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.88rem}
@@ -1609,6 +1619,22 @@ function alertBox(k, side){
     <div class="alist">${evs.map(e=>evRow(e)).join('')}${alerts.join('')}</div>
     ${n ? '' : `<div class="dsempty">${k === t ? '오늘은 결제·일정·만료 알림이 없어요.' : '이날은 결제·일정이 없어요.'}</div>`}</div>`;
 }
+/* 다이어리: 넓은 화면에선 펼친 칸, '크게 보기'만 팝업. 폰에선 한 줄 → 팝업 */
+function diaryEntriesHtml(k){
+  const ents = getDay(k).entries, shown = ents.length ? ents : [{ id:'new', text:'' }];
+  return `${shown.map((e, i) => entryBlock(k, e, i + 1, shown.length)).join('')}<button type="button" class="daddentry" data-act="entry-add" data-date="${k}">+ 기억 추가</button>`;
+}
+function diaryModal(k){
+  return `<div class="dmodal" data-act="diary-close" data-bg="1"><div class="dsheet" role="dialog" aria-modal="true" aria-label="다이어리">
+      <div class="dshhead"><b>📖 다이어리</b><span class="muted">${fmtDay(k)}</span><span class="sp"></span><span class="hint" id="diaryState">자동 저장</span><button type="button" class="iconbtn" data-act="diary-close" aria-label="닫기">×</button></div>
+      <div class="dentries">${diaryEntriesHtml(k)}</div>
+      <div class="hint" style="margin-top:8px">☆를 누르면 그날의 대표사진(1장)이 돼요. 정하지 않으면 첫 사진이 자동으로 대표가 돼요.</div></div></div>`;
+}
+function diaryInline(k){
+  const t = todayStr();
+  return `<div class="dsbox dsdiary2" data-pane style="${ss('mid3',2)}"><div class="dshead">📖 다이어리<span class="sp"></span><span class="hint" id="diaryStateInline" style="font-weight:400;letter-spacing:0">${k < t ? '지난 기록' : '자동 저장'}</span><button type="button" class="link2" data-act="diary-open" data-date="${k}" aria-label="다이어리 크게 보기">⤢ 크게 보기</button></div>
+    ${S.diaryOpen === k ? '<div class="dsempty">크게 보기 창에서 쓰는 중이에요.</div>' : `<div class="dentries">${diaryEntriesHtml(k)}</div>`}</div>`;
+}
 function routineBox(k){
   const d = getDay(k), list = S.routines || [], done = list.filter(r => d.rt[r.id]).length;
   const chips = list.map(r => S.rtEdit
@@ -1646,14 +1672,10 @@ function dayContent(k, opts={}){
   const ents = d.entries, cv = coverOf(k), nPh = ents.reduce((a, e) => a + ePh(e.id).length, 0), pv = ((ents.find(e => (e.text||'').trim()) || {}).text || '').trim().split('\n')[0];
   const shown = ents.length ? ents : [{ id:'new', text:'' }];
   const diary = `<button type="button" class="dbar" data-act="diary-open" data-date="${k}">${cv ? `<img class="dbcover" src="${cv.src}" alt="">` : ''}<span class="dbt">📖 다이어리</span><span class="dbp">${pv ? esc(pv) : '<span class="muted">쓰기</span>'}</span>${ents.length > 1 || nPh ? `<small class="muted">${[ents.length > 1 ? `기억 ${ents.length}` : '', nPh ? `📷 ${nPh}` : ''].filter(Boolean).join(' · ')}</small>` : ''}<span class="dbgo" aria-hidden="true">›</span></button>
-    ${S.diaryOpen === k ? `<div class="dmodal" data-act="diary-close" data-bg="1"><div class="dsheet" role="dialog" aria-modal="true" aria-label="다이어리">
-      <div class="dshhead"><b>📖 다이어리</b><span class="muted">${fmtDay(k)}</span><span class="sp"></span><span class="hint" id="diaryState">자동 저장</span><button type="button" class="iconbtn" data-act="diary-close" aria-label="닫기">×</button></div>
-      <div class="dentries">${shown.map((e, i) => entryBlock(k, e, i + 1, shown.length)).join('')}
-        <button type="button" class="daddentry" data-act="entry-add" data-date="${k}">+ 기억 추가</button></div>
-      <div class="hint" style="margin-top:8px">☆를 누르면 그날의 대표사진(1장)이 돼요. 정하지 않으면 첫 사진이 자동으로 대표가 돼요.</div></div></div>` : ''}`;
+    ${S.diaryOpen === k ? diaryModal(k) : ''}`;
   return `${opts.noHead ? '' : `<div class="dayhead"><h3>${fmtDay(k)}</h3><span class="mode">${mode}</span></div>`}
-    ${opts.noTT ? (S.condEdit ? `<div class="dsboard">${condHtml}</div>` : `<div class="dsboard" data-pane style="${ss('mid',0)}">${board}</div>${splitter('mid',0)}${condHtml.replace('<div class="dsbox dscond">', `<div class="dsbox dscond" data-pane style="${ss('mid',1)}">`)}`) : `${board}${condHtml}<div class="sublabel">시간 계획</div>${placingBar()}${dayTimetable(k)}`}
-    ${opts.noTT && S.condEdit ? '' : diary}`;
+    ${opts.noTT ? (S.condEdit ? `<div class="dsboard">${condHtml}</div>` : `<div class="dsboard" data-pane style="${ss('mid3',0)}">${board}</div>${splitter('mid3',0)}${condHtml.replace('<div class="dsbox dscond">', `<div class="dsbox dscond" data-pane style="${ss('mid3',1)}">`)}${splitter('mid3',1)}${diaryInline(k)}`) : `${board}${condHtml}<div class="sublabel">시간 계획</div>${placingBar()}${dayTimetable(k)}`}
+    ${opts.noTT ? (S.diaryOpen === k ? diaryModal(k) : '') : diary}`;
 }
 
 /* --- 항목 --- */
@@ -1968,7 +1990,7 @@ document.addEventListener('click', async e => {
     case 'todo-toggle': { const t = (S.todos||[]).find(x => x.id === el.dataset.id); if (t){ t.done = el.checked; t.doneOn = el.checked ? k : null; doRender(); } break; }
     case 'todo-del': S.todos = (S.todos||[]).filter(x => x.id !== el.dataset.id); if (S.placing === 't:' + el.dataset.id) S.placing = null; doRender(); break;
     case 'cond-tag': { const d = getDay(k), id = el.dataset.id; const cond = d.cond.includes(id) ? d.cond.filter(x => x !== id) : [...d.cond, id]; saveDay(k, {cond}); break; }
-    case 'diary-open': S.diaryOpen = k; doRender(); { const ta = $('#diary'); if (ta && !ta.value) ta.focus({ preventScroll:true }); } break;
+    case 'diary-open': flushDiary(); S.diaryOpen = k; doRender(); { const ta = $('.dsheet textarea.dtext'); if (ta && !ta.value) ta.focus({ preventScroll:true }); } break;
     case 'diary-close': if (el.dataset.bg && e.target !== el) break; flushDiary(); S.diaryOpen = null; doRender(); break;
     case 'cond-legend': S.condLegend = !S.condLegend; doRender(); break;
     case 'cond-edit': S.condEdit = !S.condEdit; doRender(); break;
@@ -2104,8 +2126,8 @@ document.addEventListener('input', e => {
   if (e.target.classList && e.target.classList.contains('dtext')){
     const ta = e.target, k = ta.dataset.date; let id = ta.dataset.entry;
     if (id === 'new'){ id = ensureEntry(k, 'new'); ta.dataset.entry = id; }
-    const st = $('#diaryState'); if (st) st.textContent = '입력 중…';
-    clearTimeout(diaryTimers['e:'+id]); diaryTimers['e:'+id] = setTimeout(() => { delete diaryTimers['e:'+id]; setEntryText(k, id, ta.value); const s2 = $('#diaryState'); if (s2) s2.textContent = '저장됨'; }, 800); return;
+    const st = $('#diaryState') || $('#diaryStateInline'); if (st) st.textContent = '입력 중…';
+    clearTimeout(diaryTimers['e:'+id]); diaryTimers['e:'+id] = setTimeout(() => { delete diaryTimers['e:'+id]; setEntryText(k, id, ta.value); const s2 = $('#diaryState') || $('#diaryStateInline'); if (s2) s2.textContent = '저장됨'; }, 800); return;
   }
 });
 /* 다이어리 사진: 긴 변 900px JPEG로 줄여서 드라이브에 저장 */
