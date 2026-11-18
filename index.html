@@ -1023,6 +1023,7 @@ async function pullAll(quiet){
     const snap = snapshotAll(); let changed = false, hasSettings = false;
     SYNC_COLS.forEach(c => (j.cols[c] || []).forEach(r => {
       if (c === 'meta' && r.id !== 'settings') return;
+      if (c === 'days' && !/^\d{4}-\d{2}-\d{2}$/.test(r.id)) return; // 시트가 날짜로 바꿔 버린 예전 줄은 무시
       if (c === 'meta') hasSettings = !r.deleted;
       const inLocal = r.id in snap[c], firstSettings = c === 'meta' && SAVED.meta.settings === undefined;
       if (!firstSettings){
@@ -1034,6 +1035,7 @@ async function pullAll(quiet){
       if (snap[c][r.id] !== str){ colSet(c, r.id, r.data); changed = true; }
       SAVED[c][r.id] = JSON.stringify(colGet(c)[r.id]);
     }));
+    Object.keys(S.days).forEach(k => { if (!/^\d{4}-\d{2}-\d{2}$/.test(k)){ delete S.days[k]; delete SAVED.days[k]; } });
     if (!hasSettings) delete SAVED.meta.settings; // 시트에 설정이 없으면 이 기기 설정을 올림
     syncErr = null; lastSync = new Date().toISOString(); writeCache();
     if (changed){ clearAutoCache(); render(); }
@@ -1135,7 +1137,7 @@ function ensureEntry(k, id){ const d = getDay(k), ents = d.entries; let e = ents
 function setEntryText(k, id, text){ const d = getDay(k), ents = d.entries, e = ents.find(x => x.id === id); if (!e) return; e.text = text; saveDay(k, {entries:ents, diary: ents.map(x => x.text).filter(Boolean).join('\n\n')}, {render:false}); }
 function flushDiary(){ document.querySelectorAll('textarea.dtext').forEach(ta => { const key = 'e:' + ta.dataset.entry; if (diaryTimers[key]){ clearTimeout(diaryTimers[key]); delete diaryTimers[key]; const id = ensureEntry(ta.dataset.date, ta.dataset.entry); setEntryText(ta.dataset.date, id, ta.value); } }); }
 function doRender(){
-  flushDiary();
+  flushDiary(); if (S.loaded && CONN) schedulePush(); // 설정(데일리 체크·증상 등)을 바꾼 것도 시트에 올라가게
   pendingRender = false; clearAutoCache();
   const wide = isWide(), now = new Date();
   if (!wide) S.drawer = null;
