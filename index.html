@@ -993,6 +993,18 @@ function syncLabel(){
 }
 function hasDirty(snap){ snap = snap || snapshotAll(); return SYNC_COLS.some(c => Object.keys(snap[c]).some(id => snap[c][id] !== SAVED[c][id]) || Object.keys(SAVED[c]).some(id => !(id in snap[c]))); }
 function schedulePush(delay = 1200){ clearTimeout(pushTimer); pushTimer = setTimeout(pushNow, delay); }
+/* 구글 시트가 '2026-11-18'(날짜 id)·시각 글자를 날짜 서식으로 바꿔 버리는 문제 대비:
+   시트에는 날짜 id를 'd:2026-11-18', 시각을 't2026-…'로 저장(글자로 시작해서 시트가 바꾸지 않음) */
+const sheetId = (c, id) => c === 'days' ? 'd:' + id : id;
+function normDay(id){ id = String(id); if (/^\d{4}-\d{2}-\d{2}$/.test(id)) return id; const t = Date.parse(id); return isNaN(t) ? null : ymd(new Date(t)); }
+const tOf = v => { const t = Date.parse(String(v || '').replace(/^t/, '')); return isNaN(t) ? 0 : t; };
+function fixDaysRows(rows){ // 'd:' 줄이 우선, 없으면 예전 줄(날짜로 바뀐 것 포함) 중 가장 최신
+  const dmap = {}, legacy = {};
+  (rows || []).forEach(r => { const id = String(r.id);
+    if (id.startsWith('d:')) dmap[id.slice(2)] = { ...r, id:id.slice(2) };
+    else { const k = normDay(id); if (k && (!legacy[k] || tOf(legacy[k].updatedAt) <= tOf(r.updatedAt))) legacy[k] = { ...r, id:k }; } });
+  return { rows: Object.keys({ ...legacy, ...dmap }).map(k => dmap[k] || legacy[k]), has: dmap };
+}
 async function pushNow(){
   const snap = snapshotAll(); writeCache(snap);
   if (!CONN || pushing || !S.loaded) { syncLabel(); return; }
@@ -1007,7 +1019,7 @@ async function pushNow(){
     for (const c of cols){
       for (let i = 0; i < batches[c].length; i += 200){ // 너무 큰 요청 방지
         const part = batches[c].slice(i, i + 200);
-        await api('POST', { action:'upsert', col:c, records:part.map(({ _s, ...r }) => r) });
+        await api('POST', { action:'upsert', col:c, records:part.map(({ _s, ...r }) => ({ ...r, id:sheetId(c, r.id), updatedAt:'t' + r.updatedAt })) });
         part.forEach(r => { if (r.deleted) delete SAVED[c][r.id]; else SAVED[c][r.id] = r._s; });
       }
     }
@@ -1021,9 +1033,9 @@ async function pullAll(quiet){
   try {
     const j = await api('GET', { action:'listAll' });
     const snap = snapshotAll(); let changed = false, hasSettings = false;
+    const fd = fixDaysRows(j.cols.days); j.cols.days = fd.rows;
     SYNC_COLS.forEach(c => (j.cols[c] || []).forEach(r => {
       if (c === 'meta' && r.id !== 'settings') return;
-      if (c === 'days' && !/^\d{4}-\d{2}-\d{2}$/.test(r.id)) return; // 시트가 날짜로 바꿔 버린 예전 줄은 무시
       if (c === 'meta') hasSettings = !r.deleted;
       const inLocal = r.id in snap[c], firstSettings = c === 'meta' && SAVED.meta.settings === undefined;
       if (!firstSettings){
@@ -1036,6 +1048,7 @@ async function pullAll(quiet){
       SAVED[c][r.id] = JSON.stringify(colGet(c)[r.id]);
     }));
     Object.keys(S.days).forEach(k => { if (!/^\d{4}-\d{2}-\d{2}$/.test(k)){ delete S.days[k]; delete SAVED.days[k]; } });
+    Object.keys(S.days).forEach(k => { if (!fd.has[k]) delete SAVED.days[k]; }); // 아직 새 형식('d:')으로 시트에 없는 날 → 올림
     if (!hasSettings) delete SAVED.meta.settings; // 시트에 설정이 없으면 이 기기 설정을 올림
     syncErr = null; lastSync = new Date().toISOString(); writeCache();
     if (changed){ clearAutoCache(); render(); }

@@ -339,12 +339,12 @@ async function flush(){
   flushing=true;dirty=false;
   try{
     if(MODE!=='db'){localStorage.setItem(LKEY,JSON.stringify(UI.edit?{...D,...JSON.parse(UI.edit.orig)}:D));return}
-    const rows=toRows();writeCache(rows);const at=new Date().toISOString(),B={};
+    const rows=toRows();writeCache(rows);const at='t'+new Date().toISOString(),B={}; // 't'로 시작: 시트가 날짜로 바꾸지 않게
     Object.keys(rows).forEach(k=>{if(rows[k]!==SAVED[k]){const i=k.indexOf('|');(B[k.slice(0,i)]=B[k.slice(0,i)]||[]).push({k,id:k.slice(i+1),updatedAt:at,deleted:false,data:JSON.parse(rows[k])})}});
     Object.keys(SAVED).forEach(k=>{if(!(k in rows)){const i=k.indexOf('|');(B[k.slice(0,i)]=B[k.slice(0,i)]||[]).push({k,id:k.slice(i+1),updatedAt:at,deleted:true,data:{}})}});
     for(const col of Object.keys(B))for(let i=0;i<B[col].length;i+=200){const part=B[col].slice(i,i+200);
       await api('POST',{action:'upsert',col,records:part.map(({k,...x})=>x)});part.forEach(x=>{if(x.deleted)delete SAVED[x.k];else SAVED[x.k]=rows[x.k]})}
-    syncErr=null;errToast=false;lastSync=at;writeCache(rows);
+    syncErr=null;errToast=false;lastSync=at.slice(1);writeCache(rows);
   }catch(e){
     dirty=true;syncErr=e;
     if(!errToast){errToast=true;toast(navigator.onLine===false?'오프라인이에요. 연결되면 자동으로 저장할게요.':'저장이 잠시 늦어지고 있어요. 자동으로 다시 시도합니다.')}
@@ -1575,7 +1575,7 @@ document.addEventListener('change',e=>{
         const [T,P]=await Promise.all([api('GET',{action:'listAll',env:'test'}),api('GET',{action:'listAll',env:'prod'})]);
         const C=['workout_routines','workouts','meta'],has=C.some(c=>mine(P.cols,c).some(r=>!(c==='workouts'&&r.id==='session')));
         if(has)toast('실사용 시트에 이미 운동 기록이 있어 옮기지 않고 실사용으로 바꿨어요.');
-        else{const at=new Date().toISOString();for(const c of C){const rs=mine(T.cols,c).map(r=>({id:r.id,updatedAt:at,deleted:false,data:r.data}));for(let i=0;i<rs.length;i+=200)await api('POST',{action:'upsert',col:c,records:rs.slice(i,i+200),env:'prod'})}
+        else{const at='t'+new Date().toISOString();for(const c of C){const rs=mine(T.cols,c).map(r=>({id:r.id,updatedAt:at,deleted:false,data:r.data}));for(let i=0;i<rs.length;i+=200)await api('POST',{action:'upsert',col:c,records:rs.slice(i,i+200),env:'prod'})}
           try{localStorage.removeItem('wk_cache_prod')}catch(e){}toast('테스트 기록을 실사용으로 옮겼어요.')}
       }catch(e){toast('옮기지 못했어요. 연결을 확인하고 다시 시도해 주세요.');render();return}
       await new Promise(r=>setTimeout(r,1200))}
