@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#2f6f5e"><link rel="apple-touch-icon" href="icons/journal-180.png"><script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{scope:"./"}).catch(()=>{}))</script></head><body>
 <title>저널</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -971,7 +971,7 @@ async function api(method, payload, timeoutMs = 45000){
   try {
     const body = { ...payload, token:CONN.token, env:CONN.env };
     const res = method === 'GET'
-      ? await fetch(CONN.url + '?' + new URLSearchParams(body), { signal:ctl.signal })
+      ? await fetch(CONN.url + '?' + new URLSearchParams({ ...body, _t:Date.now() }), { signal:ctl.signal, cache:'no-store' }) // 일부 브라우저(삼성인터넷 등)가 예전 응답을 재사용하지 않도록
       : await fetch(CONN.url, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body:JSON.stringify(body), signal:ctl.signal });
     const j = await res.json();
     if (!j.ok) throw new Error(j.error || '요청 실패');
@@ -2053,9 +2053,13 @@ document.addEventListener('click', async e => {
       const switching = !prev || prev.env !== env || prev.url !== url;
       try { localStorage.setItem('jnl_conn', JSON.stringify(CONN)); } catch(_){}
       if (switching){ const hadLocal = !prev && Object.keys(S.days).length + Object.keys(S.blocks).length + Object.keys(S.items).length > 0;
-        if (!hadLocal){ resetData(); loadCache(); } SYNC_COLS.forEach(c => SAVED[c] = {}); }
+        if (!hadLocal){ resetData(); loadCache(); } }
+      // 새로 연결할 때는 시트 내용이 우선: 같은 날짜·항목은 시트 것으로 덮고, 이 기기에만 있던 것만 시트에 올림
+      const pre = snapshotAll(); if (switching) SYNC_COLS.forEach(c => SAVED[c] = { ...pre[c] });
       out.textContent = '연결됐어요. 시트에서 불러오는 중…';
-      await pullAll(); carryOver(); schedulePush(0); doRender(); toast(`${env === 'prod' ? '실사용' : '테스트'} 시트에 연결했어요.`); break;
+      const okPull = await pullAll();
+      if (switching){ if (okPull) SYNC_COLS.forEach(c => Object.keys(pre[c]).forEach(id => { if (SAVED[c][id] === pre[c][id]) delete SAVED[c][id]; })); else SYNC_COLS.forEach(c => SAVED[c] = {}); }
+      carryOver(); schedulePush(0); doRender(); toast(`${env === 'prod' ? '실사용' : '테스트'} 시트에 연결했어요.`); break;
     }
     case 'sync-now': await pushNow(); await pullAll(); doRender(); toast(syncErr ? '동기화하지 못했어요. 연결을 확인하세요.' : '동기화했어요.'); break;
     case 'conn-off': if (!el.classList.contains('armed')){ el.classList.add('armed'); el.textContent = '한 번 더 누르면 해제'; break; }

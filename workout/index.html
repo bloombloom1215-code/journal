@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#D9412A"><link rel="apple-touch-icon" href="../icons/workout-180.png"><script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("../sw.js",{scope:"../"}).catch(()=>{}))</script></head><body>
 <title>운동</title>
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="운동">
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -318,7 +318,7 @@ function fromRows(r,keepCfg){const g={};Object.entries(r).forEach(([k,str])=>{co
 function writeCache(rows){try{localStorage.setItem(ckey(),JSON.stringify({rows:rows||toRows(),saved:SAVED,lastSync}))}catch(e){}}
 async function api(method,payload,ms=45000){if(!CONN)throw new Error('연결 안 됨');const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),ms);
   try{const body={...payload,token:CONN.token,env:CONN.env};
-    const res=method==='GET'?await fetch(CONN.url+'?'+new URLSearchParams(body),{signal:ctl.signal}):await fetch(CONN.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body),signal:ctl.signal});
+    const res=method==='GET'?await fetch(CONN.url+'?'+new URLSearchParams({...body,_t:Date.now()}),{signal:ctl.signal,cache:'no-store'}):await fetch(CONN.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body),signal:ctl.signal});
     const j=await res.json();if(!j.ok)throw new Error(j.error||'요청 실패');return j}finally{clearTimeout(tm)}}
 const beginEdit=(root,id)=>{if(!UI.edit)UI.edit={root,id:id||null,orig:JSON.stringify(cfgOf())}};
 function applyCfg(x){D.cats=x.cats||[];D.ex=x.ex||[];D.blocks=x.blocks||[];D.areas=x.areas||[];D.tags=x.tags||[];D.routines=x.routines||[];D.body=x.body||{kg:''}}
