@@ -1,3 +1,3 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#2f6f5e"/><rect x="160" y="128" width="192" height="256" rx="26" fill="#fff"/>
-<rect x="196" y="128" width="16" height="256" fill="#2f6f5e"/>
-<path d="M286 128 V218 L310 199 L334 218 V128 Z" fill="#2f6f5e"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#2f6f5e"/><rect x="146" y="108" width="220" height="296" rx="30" fill="#fff"/>
+<rect x="187" y="108" width="18" height="296" fill="#2f6f5e"/>
+<path d="M288 108 V212 L316 190 L344 212 V108 Z" fill="#2f6f5e"/></svg>
