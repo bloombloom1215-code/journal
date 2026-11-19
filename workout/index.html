@@ -444,7 +444,7 @@ async function api(method,payload,ms=45000){if(!CONN)throw new Error('연결 안
 const beginEdit=(root,id)=>{if(!UI.edit)UI.edit={root,id:id||null,orig:JSON.stringify(cfgOf())}};
 function applyCfg(x){D.cats=x.cats||[];D.ex=x.ex||[];D.areas=x.areas||[];D.rcats=x.rcats||[];D.routines=x.routines||[];D.body=x.body||{kg:''}}
 const editDirty=()=>!!UI.edit&&JSON.stringify(cfgOf())!==UI.edit.orig;
-const APPV='11.20-7';
+const APPV='11.20-8';
 function endEdit(keep){if(!UI.edit)return;const E=UI.edit;UI.edit=null;if(!keep)applyCfg(JSON.parse(E.orig));else fillNames();save()}
 // 이름 칸을 비워 둔 채 저장하면 기본 이름으로 채움(입력칸은 비워 두고 회색 예시만 보여 줌)
 function fillNames(){D.routines.forEach(r=>{if(!String(r.name||'').trim())r.name='새 루틴'});D.ex.forEach(e=>{if(!String(e.name||'').trim())e.name='새 종목';e.levels.forEach((l,k)=>{if(!String(l.name||'').trim())l.name=e.levels.length>1?`${k+1}단계`:'기본'})})}
@@ -1710,14 +1710,16 @@ document.addEventListener('input',e=>{
 const isField=t=>t&&(t.tagName==='TEXTAREA'||(t.tagName==='INPUT'&&!/^(checkbox|radio|file|button|submit|range|color|date)$/i.test(t.type)));
 let fixT=null,FX=null,touching=false,moved=false,lastDrag=0;
 // 지금 입력 중인 칸이 키보드 위 보이는 곳(맨 위 72px 아래 ~ 키보드 위)에 있는지 보고, 벗어났으면 want 위치로 되돌림
-function keepField(force){if(!FX||document.activeElement!==FX.t)return;const t=FX.t,vv=window.visualViewport,vt=vv?vv.offsetTop:0,vh=vv?vv.height:innerHeight,r=t.getBoundingClientRect(),h=Math.min(r.height,120);
-  const bar=document.querySelector('.edtop'),bb=bar?bar.getBoundingClientRect().bottom:0,lo=vt+Math.max(16,bb+8),hi=vt+vh-h-24;if(hi<=lo)return;
-  const want=Math.max(lo,Math.min(hi,FX.want)),d=r.top-want;if(Math.abs(d)<2)return;
+// 위치는 '눈에 보이는 화면' 기준으로 잼: 키보드가 열린 아이패드는 페이지 대신 보이는 화면 자체를 위로 밀어 올리기 때문
+const vTop=()=>window.visualViewport?visualViewport.offsetTop:0,visY=t=>t.getBoundingClientRect().top-vTop();
+function keepField(force){if(!FX||document.activeElement!==FX.t)return;const t=FX.t,vv=window.visualViewport,vt=vTop(),vh=vv?vv.height:innerHeight,r=t.getBoundingClientRect(),h=Math.min(r.height,120),y=r.top-vt;
+  const bar=document.querySelector('.edtop'),bb=bar?bar.getBoundingClientRect().bottom-vt:0,lo=Math.max(16,bb+8),hi=vh-h-24;if(hi<=lo)return;
+  const want=Math.max(lo,Math.min(hi,FX.want)),d=y-want;if(Math.abs(d)<2)return;
   if(FX.box&&FX.box.scrollHeight>FX.box.clientHeight)FX.box.scrollTop+=d;else window.scrollBy(0,d)}
 document.addEventListener('focusin',e=>{const t=e.target;if(!isField(t)||!t.closest('#app'))return;
   if(t.tagName==='INPUT'&&(/numeric|decimal/.test(t.inputMode||'')||/(^| )(n|num)( |$)/.test(t.className))&&t.value!==''){const sel=()=>{try{if(document.activeElement===t)t.setSelectionRange(0,t.value.length)}catch(_){}};setTimeout(sel,0);setTimeout(sel,80);t.addEventListener('mouseup',ev=>ev.preventDefault(),{once:true})}
-  FX={t,box:t.closest('.sheet'),want:t.getBoundingClientRect().top};clearTimeout(fixT);
-  fixT=setTimeout(keepField,350);if(window.visualViewport)visualViewport.addEventListener('resize',function once(){visualViewport.removeEventListener('resize',once);clearTimeout(fixT);fixT=setTimeout(keepField,120)})});
+  FX={t,box:t.closest('.sheet'),want:visY(t)};clearTimeout(fixT);
+  fixT=setTimeout(keepField,350);[60,160,600,900].forEach(ms=>setTimeout(()=>keepField(),ms));if(window.visualViewport)visualViewport.addEventListener('resize',function once(){visualViewport.removeEventListener('resize',once);clearTimeout(fixT);fixT=setTimeout(keepField,120)})});
 document.addEventListener('focusout',()=>{setTimeout(()=>{if(FX&&document.activeElement!==FX.t)FX=null},0)});
 // 손가락으로 직접 스크롤한 건 그대로 두고, 그 자리를 새 기준으로 삼음
 document.addEventListener('touchstart',()=>{touching=true;moved=false},{passive:true,capture:true});
@@ -1725,7 +1727,7 @@ document.addEventListener('touchmove',()=>{moved=true},{passive:true,capture:tru
 document.addEventListener('touchend',e=>{const t=e.target;if(moved||!isField(t)||!t.closest('#app')||document.activeElement===t||t.disabled||t.readOnly)return;
   e.preventDefault();try{t.focus({preventScroll:true})}catch(_){t.focus()}
   if(t.tagName!=='TEXTAREA'&&!/numeric|decimal/.test(t.inputMode||'')){try{const n=t.value.length;t.setSelectionRange(n,n)}catch(_){}}},{passive:false,capture:true});
-document.addEventListener('touchend',()=>{touching=false;if(!moved)return;lastDrag=Date.now();setTimeout(()=>{if(FX&&document.activeElement===FX.t)FX.want=FX.t.getBoundingClientRect().top},450)},{passive:true,capture:true});
+document.addEventListener('touchend',()=>{touching=false;if(!moved)return;lastDrag=Date.now();setTimeout(()=>{if(FX&&document.activeElement===FX.t)FX.want=visY(FX.t)},450)},{passive:true,capture:true});
 // 글자를 칠 때나 기기가 저절로 스크롤할 때 입력칸이 튀면 되돌림
 let keepRaf=0;const keepSoon=()=>{if(!FX||(touching&&moved)||Date.now()-lastDrag<600)return;cancelAnimationFrame(keepRaf);keepRaf=requestAnimationFrame(()=>keepField(false))};
 addEventListener('scroll',keepSoon,{passive:true,capture:true});
