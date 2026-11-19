@@ -444,7 +444,7 @@ async function api(method,payload,ms=45000){if(!CONN)throw new Error('연결 안
 const beginEdit=(root,id)=>{if(!UI.edit)UI.edit={root,id:id||null,orig:JSON.stringify(cfgOf())}};
 function applyCfg(x){D.cats=x.cats||[];D.ex=x.ex||[];D.areas=x.areas||[];D.rcats=x.rcats||[];D.routines=x.routines||[];D.body=x.body||{kg:''}}
 const editDirty=()=>!!UI.edit&&JSON.stringify(cfgOf())!==UI.edit.orig;
-const APPV='11.20-10';
+const APPV='11.20-11';
 let DBG=false,dbgN=0,dbgT=0,dbgLog=[];try{DBG=localStorage.getItem('wk_dbg')==='1'}catch(_){}
 function dbg(ev){if(!DBG)return;const vv=window.visualViewport,a=document.activeElement,r=a&&a.getBoundingClientRect?a.getBoundingClientRect():{top:0};
   dbgLog.unshift(`${ev} y${Math.round(scrollY)} vt${vv?Math.round(vv.offsetTop):'-'} vh${vv?Math.round(vv.height):'-'} el${Math.round(r.top)} ${a&&a.dataset&&a.dataset.in||a.tagName}`);dbgLog=dbgLog.slice(0,9);
@@ -1722,27 +1722,27 @@ let fixT=null,FX=null,touching=false,moved=false,lastDrag=0;
 // 위치는 '눈에 보이는 화면' 기준으로 잼: 키보드가 열린 아이패드는 페이지 대신 보이는 화면 자체를 위로 밀어 올리기 때문
 // 하드웨어 키보드를 쓰는 아이패드는 칸을 옮길 때 보이는 화면 높이를 음수(-32 등)로 잘못 알려 줌 → 그때는 그 값을 믿지 않음
 const vvOk=()=>{const v=window.visualViewport;return !!v&&v.height>150&&v.offsetTop>=0&&v.offsetTop<v.height*4&&v.offsetTop+v.height<=document.documentElement.scrollHeight+innerHeight},vTop=()=>vvOk()?visualViewport.offsetTop:0,visY=t=>t.getBoundingClientRect().top-vTop();
-function keepField(force){if(!FX||document.activeElement!==FX.t)return;const t=FX.t,vt=vTop(),vh=vvOk()?visualViewport.height:innerHeight,r=t.getBoundingClientRect(),h=Math.min(r.height,120),y=r.top-vt;
+function keepField(force){if(!FX||FX.free||document.activeElement!==FX.t)return;const t=FX.t,vt=vTop(),vh=vvOk()?visualViewport.height:innerHeight,r=t.getBoundingClientRect(),h=Math.min(r.height,120),y=r.top-vt;
   const bar=document.querySelector('.edtop'),bb=bar?bar.getBoundingClientRect().bottom-vt:0,lo=Math.max(16,bb+8),hi=vh-h-24;if(hi<=lo)return;
   const want=Math.max(lo,Math.min(hi,FX.want)),d=y-want;if(Math.abs(d)<2)return;
   if(FX.box&&FX.box.scrollHeight>FX.box.clientHeight)FX.box.scrollTop+=d;else window.scrollBy(0,d)}
 document.addEventListener('focusin',e=>{const t=e.target;if(!isField(t)||!t.closest('#app'))return;
   if(t.tagName==='INPUT'&&(/numeric|decimal/.test(t.inputMode||'')||/(^| )(n|num)( |$)/.test(t.className))&&t.value!==''){const sel=()=>{try{if(document.activeElement===t)t.setSelectionRange(0,t.value.length)}catch(_){}};setTimeout(sel,0);setTimeout(sel,80);t.addEventListener('mouseup',ev=>ev.preventDefault(),{once:true})}
-  FX={t,box:t.closest('.sheet'),want:visY(t)};clearTimeout(fixT);
+  FX={t,box:t.closest('.sheet'),want:visY(t),until:Date.now()+1500};clearTimeout(fixT);
   fixT=setTimeout(keepField,350);[60,160,600,900].forEach(ms=>setTimeout(()=>keepField(),ms));if(window.visualViewport)visualViewport.addEventListener('resize',function once(){visualViewport.removeEventListener('resize',once);clearTimeout(fixT);fixT=setTimeout(keepField,120)})});
 document.addEventListener('focusout',()=>{setTimeout(()=>{const a=document.activeElement;if(!isField(a))document.documentElement.classList.remove('typing');if(FX&&a!==FX.t)FX=null},0)});
 document.addEventListener('focusin',e=>{if(isField(e.target)&&e.target.closest('#app'))document.documentElement.classList.add('typing')},true);
 // 손가락으로 직접 스크롤한 건 그대로 두고, 그 자리를 새 기준으로 삼음
 document.addEventListener('touchstart',()=>{touching=true;moved=false},{passive:true,capture:true});
-document.addEventListener('touchmove',()=>{moved=true},{passive:true,capture:true});
+document.addEventListener('touchmove',()=>{moved=true;if(FX)FX.free=true},{passive:true,capture:true});
 document.addEventListener('touchend',e=>{const t=e.target;if(moved||!isField(t)||!t.closest('#app')||document.activeElement===t||t.disabled||t.readOnly)return;
   e.preventDefault();try{t.focus({preventScroll:true})}catch(_){t.focus()}
   if(t.tagName!=='TEXTAREA'&&!/numeric|decimal/.test(t.inputMode||'')){try{const n=t.value.length;t.setSelectionRange(n,n)}catch(_){}}},{passive:false,capture:true});
 document.addEventListener('touchend',()=>{touching=false;if(!moved)return;lastDrag=Date.now();setTimeout(()=>{if(FX&&document.activeElement===FX.t)FX.want=visY(FX.t)},450)},{passive:true,capture:true});
 // 글자를 칠 때나 기기가 저절로 스크롤할 때 입력칸이 튀면 되돌림
-let keepRaf=0;const keepSoon=()=>{if(!FX||(touching&&moved)||Date.now()-lastDrag<600)return;cancelAnimationFrame(keepRaf);keepRaf=requestAnimationFrame(()=>keepField(false))};
+let keepRaf=0;const keepSoon=()=>{if(!FX||FX.free||touching||Date.now()>FX.until)return;cancelAnimationFrame(keepRaf);keepRaf=requestAnimationFrame(()=>keepField(false))};
 addEventListener('scroll',keepSoon,{passive:true,capture:true});
-document.addEventListener('input',()=>setTimeout(keepSoon,0),true);
+document.addEventListener('input',e=>{if(FX&&e.target===FX.t&&!touching){if(FX.free){FX.free=false;FX.want=visY(FX.t)}FX.until=Date.now()+800}setTimeout(keepSoon,0)},true);
 if(window.visualViewport)visualViewport.addEventListener('scroll',keepSoon);
 document.addEventListener('change',e=>{
   const t=e.target,c=t.dataset.ch;
