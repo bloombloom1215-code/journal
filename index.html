@@ -1235,7 +1235,7 @@ function monthGrid(){
     const k = ymd(d), day = gdv(k), evs = map[k]||[];
     const sel = isWide() ? S.drawer===k : false;
     const exP = exOn(k), exT = exP && exType(exP.type);
-    const cls = ['cell', exP?'exd':'', d.getMonth()!==m?'out':'', k===todayStr()?'today':'', sel?'sel':'', d.getDay()===0?'sun':'', d.getDay()===6?'sat':''].join(' ');
+    const cls = ['cell', exP?'exd':'', d.getMonth()!==m?'out':'', k===ymd(new Date())?'today':'', sel?'sel':'', d.getDay()===0?'sun':'', d.getDay()===6?'sat':''].join(' ');
     const badges = (exT?`<span class="exb" title="${esc(exT.label)}">${esc(exT.emoji)}</span>`:'') + (day.diary?penIcon:'') + (day.cond.length?`<span class="cemo">${condEmojis(day.cond, 3)}</span>`:'');
     h += `<div class="${cls}" role="button" tabindex="0" data-act="month-cell" data-date="${k}" aria-label="${fmtDay(k)} · 빈 곳을 누르면 일정 추가">
       <span class="chead"><span class="dn num" role="button" data-act="open-day" data-date="${k}" title="${fmtDay(k)} 일간 보기">${d.getDate()}</span><span class="badges">${badges}</span></span>
