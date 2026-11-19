@@ -865,7 +865,11 @@ const DOW = ['일','월','화','수','목','금','토'];
 const won = n => (Number(n)||0).toLocaleString('ko-KR') + '원';
 const comma = n => (Number(n)||0).toLocaleString('ko-KR');
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/-/g,'').slice(0,20);
-const todayStr = () => ymd(new Date());
+/* 하루 시작 기준: 이 시각 전(예: 새벽 2시)은 전날로 봄. 설정에서 바꿈. 같은 기기의 운동 앱 등도 jnl_daycut 으로 같은 기준 사용 */
+const dayCut = () => { let v; try{ v = S.dayCut; }catch(e){} if (v == null){ const l = parseInt(localStorage.getItem('jnl_daycut'), 10); v = isNaN(l) ? 300 : l; } return v; };
+const logicalNow = () => new Date(Date.now() - dayCut() * 60000);
+const todayStr = () => ymd(logicalNow());
+function syncDayCut(){ try{ localStorage.setItem('jnl_daycut', String(dayCut())); }catch(e){} }
 const fmtDay = k => { const d = parse(k); return `${d.getMonth()+1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`; };
 const weekStart = k => { const d = parse(k); return addDays(d, -((d.getDay()+6)%7)); }; // 월요일 시작
 const hm = m => `${pad(Math.floor(m/60))}:${pad(m%60)}`;
@@ -930,12 +934,12 @@ const cacheKey = () => 'jnl_cache_' + (CONN ? CONN.env : 'local');
 const isTmpPhoto = x => String(x).startsWith('tmp_');
 function settingsObj(){
   return { condTags:S.condTags, checks:S.checks, exTypes:S.exTypes, routines:S.routines, trackSel:S.trackSel, anSel:S.anSel, anIncEx:S.anIncEx, togOpen:S.togOpen,
-    wSlots:S.wSlots, wDefault:S.wDefault, wReserve:S.wReserve, wroutines:S.wroutines, dayStart:S.dayStart, dayEnd:S.dayEnd,
+    wSlots:S.wSlots, wDefault:S.wDefault, wReserve:S.wReserve, wroutines:S.wroutines, dayStart:S.dayStart, dayEnd:S.dayEnd, dayCut:dayCut(),
     cat:CAT, areas:AREAS, presets:PRESETS };
 }
 function applySettings(v){
   if (!v || typeof v !== 'object') return;
-  ['condTags','checks','exTypes','routines','trackSel','anSel','anIncEx','togOpen','wSlots','wDefault','wReserve','wroutines','dayStart','dayEnd'].forEach(k => { if (v[k] !== undefined) S[k] = v[k]; });
+  ['condTags','checks','exTypes','routines','trackSel','anSel','anIncEx','togOpen','wSlots','wDefault','wReserve','wroutines','dayStart','dayEnd','dayCut'].forEach(k => { if (v[k] !== undefined) S[k] = v[k]; }); syncDayCut();
   if (v.cat && typeof v.cat === 'object'){ Object.keys(CAT).forEach(k => delete CAT[k]); Object.assign(CAT, v.cat); }
   if (v.areas && typeof v.areas === 'object') AREAS = v.areas;
   if (Array.isArray(v.presets)) PRESETS = v.presets;
@@ -2620,7 +2624,7 @@ function deleteScoped(){
 const ym = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
 const ymAdd = (s, n) => { const [y,m] = s.split('-').map(Number); return ym(new Date(y, m-1+n, 1)); };
 const ymDiff = (a, b) => { const [y1,m1] = a.split('-').map(Number), [y2,m2] = b.split('-').map(Number); return (y1-y2)*12 + (m1-m2); };
-const thisYM = () => ym(new Date());
+const thisYM = () => ym(logicalNow());
 const ymLabel = (s, withYear) => `${withYear || s.slice(5)==='01' ? s.slice(2,4)+'년 ' : ''}${+s.slice(5)}월`;
 const durLabel = m => m % 60 ? `${Math.floor(m/60) ? Math.floor(m/60)+'시간 ' : ''}${m%60}분` : `${m/60}시간`;
 /* 지난 달에 배정 못 한 월 지정 할 일 → 이번 달로 자동 이월 */
@@ -2838,7 +2842,11 @@ function pj2Click(a, el){
   return false;
 }
 function viewSettings(){
-  return `<section class="panel" style="margin-bottom:16px"><h2>입력 도구</h2>
+  const cutOpts = [0,60,120,180,240,300,360,420,480].map(m => `<option value="${m}" ${dayCut()===m?'selected':''}>${m ? `새벽 ${m/60}시` : '자정 (밤 12시)'}</option>`).join('');
+  return `<section class="panel" style="margin-bottom:16px"><h2>하루 시작 기준</h2>
+    <label class="f">다음 날로 넘어가는 시각 <select class="field" id="dayCutSel">${cutOpts}</select></label>
+    <div class="hint" style="margin-top:6px">이 시각 전에는 전날로 기록돼요. 예: 새벽 5시로 두면 20일 새벽 2시에 쓴 내용은 19일 일간계획에 들어가요. 운동 앱도 같은 기준을 써요.</div></section>
+    <section class="panel" style="margin-bottom:16px"><h2>입력 도구</h2>
     <div class="btns"><button class="btn" data-act="set-tags">컬러 태그 편집</button><button class="btn" data-act="set-presets">빠른 채우기 편집</button><button class="btn" data-act="set-areas">프로젝트 분야 편집</button></div></section>
     <div class="sublabel" style="margin-top:0">정기 지출 · 만료 · 주기 관리</div>${viewItems()}
     <div class="sublabel" style="margin-top:20px">저장소 · 백업</div>${viewConn()}${viewData()}`;
@@ -3561,7 +3569,7 @@ function defaults(){
   S.routines = [ {id:'rt1', name:'약 먹기'} ];
   S.trackSel = ['workout', 'rt:rt1']; S.anSel = null; S.anIncEx = false; S.togOpen = false;
   S.wSlots = {}; S.wDefault = 1140; S.wReserve = {}; S.wroutines = [];
-  S.dayStart = 360; S.dayEnd = 1380;
+  S.dayStart = 360; S.dayEnd = 1380; S.dayCut = 300;
 }
 function resetData(){
   OBJ_COLS.forEach(c => S[c] = {}); S.todos = []; S.exPeriods = []; S.ePhotos = {}; S.wplans = {}; defaults();
@@ -3581,6 +3589,7 @@ window.addEventListener('online', () => { schedulePush(0); pullAll(true); });
 setInterval(() => { if (document.visibilityState === 'visible' && !isTyping()) pullAll(true); }, 120000);
 /* 화면을 다시 그리거나 입력이 바뀌면 저장 예약 */
 document.addEventListener('change', () => schedulePush(), true);
+document.addEventListener('change', e => { if (e.target.id !== 'dayCutSel') return; S.dayCut = +e.target.value; syncDayCut(); S.sel = todayStr(); doRender(); toast(`이제 ${e.target.value === '0' ? '자정' : '새벽 ' + (+e.target.value/60) + '시'}에 다음 날로 넘어가요.`); });
 document.addEventListener('input', () => schedulePush(2000), true);
 document.addEventListener('click', () => schedulePush(), true);
 </script>

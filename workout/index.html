@@ -381,7 +381,11 @@ async function boot(){
   booted=true;if(migrateBlocks())save();render();
   setInterval(()=>{if(!document.hidden)pull()},120000);
 }
-const now=new Date();
+/* 하루 시작 기준: 저널 설정의 '다음 날로 넘어가는 시각'(같은 기기 저장값)을 따름. 그 전(예: 새벽 2시)은 전날로 기록 */
+const dayCut=()=>{const v=parseInt(localStorage.getItem('jnl_daycut'),10);return isNaN(v)?300:v};
+const logicalNow=()=>new Date(Date.now()-dayCut()*60000);
+const today=()=>ymd(logicalNow());
+const now=logicalNow();
 const UI={view:'today',month:[now.getFullYear(),now.getMonth()],selDate:null,editR:null,editEx:null,sheet:null,cardLog:null,capture:false,
   open:{},pick:[],rOpen:{},rq:'',editB:null,q:'',cat:'all',addCat:false,catName:'',addQ:'',busy:''};
 // 편집 중(루틴·묶음·종목)에는 저장소에 바로 쓰지 않고, 나갈 때 저장 여부를 물어봄
@@ -587,7 +591,7 @@ function viewToday(){
   if(D.session)return viewSession();
   const local=MODE==='local'?`<p class="note">구글 시트에 연결되지 않아 이 기기에만 저장하고 있어요. <a href="../">저널</a>의 설정에서 저장소를 연결하면 운동 앱도 함께 연결돼요.</p>`:(CONN&&CONN.env==='test'?`<p class="note">테스트 시트에 연결되어 있어요. 써 보고 괜찮으면 설정에서 '실사용'으로 바꾸세요.</p>`:'');
   const first=!D.routines.length?`<div class="card"><h2>처음 시작하기</h2><p class="sub">1. 종목 탭에서 종목과 기록 항목을 만들고<br>2. 루틴 탭에서 루틴을 만든 뒤<br>3. 여기서 루틴을 시작하세요.</p><div class="grid two"><button class="btn soft" data-a="nav" data-v="library">종목 만들기</button><button class="btn primary" data-a="nav" data-v="routines">루틴 만들기</button></div></div>`:'';
-  const t=ymd(new Date());const pending=D.logs.filter(l=>l.date===t&&!l.photo);
+  const t=today();const pending=D.logs.filter(l=>l.date===t&&!l.photo);
   const last=[...D.logs].sort((a,b)=>b.date.localeCompare(a.date))[0];
   return `<div class="head"><span class="eyebrow">${dateLabel(t)}</span><h1>오늘은 어떤 루틴?</h1></div>${local}${first}
   ${pending.map(l=>`<div class="card banner"><div><h2>오운완 사진만 남았어요</h2><p class="sub">${esc(l.name)} 기록이 저장되어 있어요. 찍으면 이 기록에 바로 붙습니다.</p></div>${camBtns(l.id,true)}</div>`).join('')}
@@ -613,18 +617,18 @@ const secKey=(e,s)=>{const r=eRank(e);return r===0?'_warm':r===2?'_cool':(e.rid|
 function entryProg(e){if(e.parts)return [e.parts.filter(p=>p.done).length,e.parts.length];if(e.sets)return [e.sets.filter(x=>x.done).length,e.sets.length];return [e.done?1:0,1]}
 function startBlock(id){const b=getBlock(id);if(!b)return;if(D.session){toast('진행 중인 운동을 먼저 끝내 주세요');return}
   const e=toEntry({uid:uid(),blockId:id});e.rid='_blk';UI.open[e.uid]=true;
-  D.session={rid:null,rids:[],name:b.name,color:b.color||'#7A8494',bw:D.body.kg,date:ymd(new Date()),start:Date.now(),past:false,dur:'',memo:'',items:[e],blockOnly:true};save();scrollTo(0,0)}
+  D.session={rid:null,rids:[],name:b.name,color:b.color||'#7A8494',bw:D.body.kg,date:today(),start:Date.now(),past:false,dur:'',memo:'',items:[e],blockOnly:true};save();scrollTo(0,0)}
 function startSession(ids,opt={}){const rs=ids.map(getR).filter(Boolean);if(!rs.length&&!opt.past)return;
-  const s={rid:rs[0]?rs[0].id:null,rids:[],name:'',color:rs[0]?rs[0].color:'#7A8494',bw:D.body.kg,date:opt.date||ymd(new Date()),start:opt.past?null:Date.now(),past:!!opt.past,dur:'',memo:'',items:[]};
+  const s={rid:rs[0]?rs[0].id:null,rids:[],name:'',color:rs[0]?rs[0].color:'#7A8494',bw:D.body.kg,date:opt.date||today(),start:opt.past?null:Date.now(),past:!!opt.past,dur:'',memo:'',items:[]};
   rs.forEach(r=>{s.items.push(...routineEntries(r,s));s.rids.push(r.id)});sortSession(s);s.name=rs.map(r=>r.name).join(' + ')||'직접 기록';
   D.session=s;UI.pick=[];if(opt.past)UI.view='today';save();scrollTo(0,0)}
 // 저장된 기록을 운동 화면으로 열기: 수정(editLogId) 또는 다른 날짜로 복사
-function openLog(l,mode){const s={rid:l.rid,rids:logRoutines(l).map(r=>r.id),name:l.name,color:l.color,bw:l.bw??D.body.kg,date:mode==='edit'?l.date:ymd(new Date()),
+function openLog(l,mode){const s={rid:l.rid,rids:logRoutines(l).map(r=>r.id),name:l.name,color:l.color,bw:l.bw??D.body.kg,date:mode==='edit'?l.date:today(),
   start:null,past:true,dur:l.dur??'',memo:mode==='edit'?(l.memo||''):'',items:clone(l.items)};if(mode==='edit'){s.editLogId=l.id;s.manual=!!l.manual}
   D.session=s;UI.view='today';save();scrollTo(0,0)}
 /* ===== 부위별 꾸준함: 오늘 기준 최근 28일 ===== */
 function areaStats(){
-  const t0=new Date(ymd(new Date())+'T00:00');const dd=d=>Math.round((t0-new Date(d+'T00:00'))/864e5);
+  const t0=new Date(today()+'T00:00');const dd=d=>Math.round((t0-new Date(d+'T00:00'))/864e5);
   const cur={};(D.blocks||[]).forEach(b=>(b.items||[]).forEach(p=>{if(p.id)cur[p.id]=p}));
   // 지금 설정된 부위·이름을 우선(이름을 바꿔도 같은 항목으로 집계), 부위가 없으면 동작 이름
   const keysOf=pt=>{const c=pt.pid&&cur[pt.pid];const ids=(c&&c.areas&&c.areas.length?c.areas:pt.areas)||[];
@@ -651,7 +655,7 @@ function staleCard(){
 /* ===== 오늘 탭 루틴 목록: 한 줄씩, 최근에 한 루틴이 위로 ===== */
 function todayList(){
   const last={};D.logs.forEach(l=>logRoutines(l).forEach(r=>{if(!last[r.id]||l.date>last[r.id])last[r.id]=l.date}));
-  const t0=new Date(ymd(new Date())+'T00:00');const ago=d=>{const n=Math.round((t0-new Date(d+'T00:00'))/864e5);return n<=0?'오늘':n===1?'어제':n+'일 전'};
+  const t0=new Date(today()+'T00:00');const ago=d=>{const n=Math.round((t0-new Date(d+'T00:00'))/864e5);return n<=0?'오늘':n===1?'어제':n+'일 전'};
   const q=(UI.rq||'').trim().toLowerCase();
   const rs=D.routines.map((r,i)=>({r,i})).filter(x=>!q||x.r.name.toLowerCase().includes(q))
     .map(x=>x.r);
@@ -671,7 +675,7 @@ function viewSession(){
     <div class="progress"><i style="width:${tot?done/tot*100:0}%"></i></div><div class="cnt">${done}/${tot}<span class="sub"> 완료</span></div></div>
     <div class="ivmini" id="sb-iv" hidden></div></div></div><div class="sbar-space" id="sb-space" style="height:${lastBarH}px"></div>
   <div class="head"><span class="eyebrow">${dateLabel(s.date)}${s.editLogId?' · 기록 수정':s.past?' · 지난 기록 입력':''}</span><h1>${esc(s.name)}</h1></div>
-  ${s.past?`<div class="card"><div class="grid two"><div class="field"><label for="sdate">날짜</label><input class="inp" type="date" id="sdate" max="${ymd(new Date())}" value="${s.date}" data-in="sdate" data-ch="sdate"></div>
+  ${s.past?`<div class="card"><div class="grid two"><div class="field"><label for="sdate">날짜</label><input class="inp" type="date" id="sdate" max="${today()}" value="${s.date}" data-in="sdate" data-ch="sdate"></div>
     <div class="field"><label for="sdur">운동 시간 (분, 모르면 비워 두기)</label><input class="inp n" id="sdur" inputmode="numeric" value="${s.dur??''}" data-in="sdur"></div></div></div>`:''}
   ${(()=>{const keys=[...new Set(s.items.map(e=>secKey(e,s)))];const multi=keys.length>1;const prog={};
     s.items.forEach(e=>{const k=secKey(e,s),[d,t]=entryProg(e);prog[k]=prog[k]||[0,0];prog[k][0]+=d;prog[k][1]+=t});
@@ -835,8 +839,8 @@ function logCard(l){
 function viewHistory(){
   const [y,m]=UI.month;const first=new Date(y,m,1).getDay();const days=new Date(y,m+1,0).getDate();
   const byDate={};D.logs.forEach(l=>(byDate[l.date]=byDate[l.date]||[]).push(l));
-  if(!UI.selDate){const ls=[...D.logs].sort((a,b)=>b.date.localeCompare(a.date));UI.selDate=ls[0]?ls[0].date:ymd(new Date())}
-  const t=ymd(new Date());
+  if(!UI.selDate){const ls=[...D.logs].sort((a,b)=>b.date.localeCompare(a.date));UI.selDate=ls[0]?ls[0].date:today()}
+  const t=today();
   let cells=[...WD].map(w=>`<div class="wd">${w}</div>`).join('')+'<div></div>'.repeat(first);
   for(let d=1;d<=days;d++){const k=`${y}-${pad(m+1)}-${pad(d)}`;const ls=byDate[k]||[];
     cells+=`<button class="day ${ls.some(l=>l.photo)?'ph':''} ${k===t?'today':''} ${k===UI.selDate?'sel':''}" data-a="selDate" data-d="${k}">${d}
@@ -848,7 +852,7 @@ function viewHistory(){
    <div class="legend">${D.routines.map(r=>`<span><i class="swatch" style="background:${r.color}"></i>${esc(r.name)}</span>`).join('')}
    <span><i class="swatch" style="border:1.5px solid var(--muted);border-radius:50%;width:9px;height:9px"></i>사진 있음</span></div></div>
   ${sel.length?sel.map(logCard).join(''):`<p class="empty">${dateLabel(UI.selDate)}에는 기록이 없어요.</p>`}
-  ${UI.selDate<=ymd(new Date())?`<button class="btn block" data-a="pastNew">+ ${+UI.selDate.slice(5,7)}월 ${+UI.selDate.slice(8)}일에 기록 추가</button>`:''}
+  ${UI.selDate<=today()?`<button class="btn block" data-a="pastNew">+ ${+UI.selDate.slice(5,7)}월 ${+UI.selDate.slice(8)}일에 기록 추가</button>`:''}
   <div class="card"><h2>오운완 사진 한꺼번에 붙이기</h2>
    <p class="sub">갤러리에서 사진을 여러 장 고르면 찍은 날짜를 보고 그날 운동 기록에 알아서 붙입니다. 며칠 치를 몰아서 정리할 때 쓰세요.</p>
    <label class="btn soft">사진 여러 장 고르기<input type="file" accept="image/*" multiple data-bulk="1" hidden></label></div>`;
@@ -896,7 +900,7 @@ function captureView(){const l=D.logs.find(x=>x.id===UI.cardLog)||monthLogs().sl
 /* --- 교정: 숙제 꾸준함 · 몸 상태 비포/애프터 · 수업 노트 --- */
 const curTag=()=>{const ts=D.tags||[];return ts.find(t=>t.id===UI.tagSel)||ts[0]};
 function homework(tid){
-  const t0=new Date(ymd(new Date())+'T00:00');const dd=d=>Math.round((t0-new Date(d+'T00:00'))/864e5);
+  const t0=new Date(today()+'T00:00');const dd=d=>Math.round((t0-new Date(d+'T00:00'))/864e5);
   const items=[];
   D.ex.filter(e=>(e.tags||[]).includes(tid)).forEach(e=>items.push({key:'ex:'+e.id,name:e.name,sub:'종목',hit:en=>en.exId===e.id&&en.kind!=='block'}));
   const seen=new Set();(D.blocks||[]).forEach(b=>b.items.forEach(p=>{if((p.tags||[]).includes(tid)&&!seen.has(p.id)){seen.add(p.id);
@@ -959,7 +963,7 @@ function viewFix(){
    <p class="sub">몸 사진은 사진 ZIP 백업과 JSON 내보내기에 포함되지 않아요.</p></div>
 
   <div class="card"><div class="row between"><h2>수업 노트</h2>${nd?'':`<button class="btn small soft" data-a="noteNew">+ 노트 쓰기</button>`}</div>
-   ${nd?`<div class="field"><label for="ndate">날짜</label><input class="inp" type="date" id="ndate" max="${ymd(new Date())}" value="${nd.date}" data-in="ndate"></div>
+   ${nd?`<div class="field"><label for="ndate">날짜</label><input class="inp" type="date" id="ndate" max="${today()}" value="${nd.date}" data-in="ndate"></div>
      <textarea class="inp" id="ntext" rows="6" placeholder="배운 운동, 선생님이 강조한 포인트, 다음 수업까지 할 숙제 등" data-in="ntext">${esc(nd.text)}</textarea>
      ${hw.length?`<div class="field"><label>동작별 포인트 <span class="unit">운동할 때 그 동작 아래에 표시돼요</span></label>${hw.map(h=>`<div class="ptrow"><span class="sub">${esc(h.name)} · ${esc(h.sub)}</span><input class="inp" id="npt-${h.key.replace(':','-')}" value="${esc(((nd.pts||{})[h.key]||{}).t||'')}" data-in="npt:${h.key}" placeholder="선생님이 강조한 포인트 (비워도 돼요)"></div>`).join('')}</div>`:`<p class="sub">동작별 포인트를 남기려면 먼저 종목이나 묶음 항목에 ${esc(t.name)} 태그를 붙여 주세요.</p>`}
      <div class="grid two"><button class="btn primary" data-a="noteSave">저장</button><button class="btn ghost" data-a="noteCancel">취소</button></div>`:''}
@@ -1016,7 +1020,7 @@ function poseView(){const p=UI.pose;
    <div class="row"><button class="btn small soft" data-a="poseUndo">↶ 되돌리기</button><button class="btn small ghost" data-a="poseClear">점 모두 지우기</button><span class="grow"></span><button class="chip ${p.mirror?'on':''}" data-a="poseMirror" aria-pressed="${p.mirror}">거울에 비친 사진</button></div>
    <p class="sub">거울에 비친 모습을 그대로 찍었다면 켜 두세요. 사진의 왼쪽이 내 왼쪽이에요. 일반 촬영이면 꺼 주세요.</p>
    <div id="posenum" class="card">${poseNumHTML()}</div>
-   <div class="field"><label for="pdate">날짜</label><input class="inp" type="date" id="pdate" max="${ymd(new Date())}" value="${p.date}" data-in="pdate"></div>
+   <div class="field"><label for="pdate">날짜</label><input class="inp" type="date" id="pdate" max="${today()}" value="${p.date}" data-in="pdate"></div>
    <button class="btn primary block" data-a="poseSave">저장</button></div></main>`}
 function poseDraw(loupe){const c=POSE.c;if(!c||!POSE.img)return;drawPose(c.getContext('2d'),POSE.img,c.width,c.height,UI.pose.pts,{loupe:loupe&&POSE.at?POSE.at:null})}
 function poseText(){const a=document.getElementById('poseprompt'),b=document.getElementById('posenum');if(a)a.innerHTML=posePrompt();if(b)b.innerHTML=poseNumHTML()}
@@ -1032,8 +1036,8 @@ document.addEventListener('pointermove',e=>{if(!POSE.drag||!POSE.c)return;e.prev
 const poseEnd=()=>{if(!POSE.drag)return;POSE.drag=null;POSE.at=null;poseDraw(false);poseText()};
 document.addEventListener('pointerup',poseEnd);document.addEventListener('pointercancel',poseEnd);
 async function poseStart(file){toast('사진 준비 중…');try{
-  if(MODE==='db'){const b=await shrink(file,1600,'blob');UI.pose={id:null,date:ymd(new Date()),blob:b,src:URL.createObjectURL(b),pts:{},mirror:true,ar:null}}
-  else{const u=await shrink(file,900,'url');UI.pose={id:null,date:ymd(new Date()),url:u,src:u,pts:{},mirror:true,ar:null}}
+  if(MODE==='db'){const b=await shrink(file,1600,'blob');UI.pose={id:null,date:today(),blob:b,src:URL.createObjectURL(b),pts:{},mirror:true,ar:null}}
+  else{const u=await shrink(file,900,'url');UI.pose={id:null,date:today(),url:u,src:u,pts:{},mirror:true,ar:null}}
   render();scrollTo(0,0)}catch(e){toast(photoErr(e))}}
 async function dropPic(a){return dropPhoto(a)}
 /* --- 종목 --- */
@@ -1131,7 +1135,7 @@ function viewExEditor(){
 }
 const exportJson=()=>JSON.stringify({app:'owoonwan',version:1,exported:new Date().toISOString(),body:D.body,cats:D.cats,ex:D.ex,blocks:D.blocks,areas:D.areas,tags:D.tags,notes:D.notes,checks:D.checks,routines:D.routines,
   logs:[...D.logs].sort((a,b)=>a.date.localeCompare(b.date)).map(l=>({...l,photo:l.photo&&String(l.photo).startsWith('data:')?'(이 기기 사진)':l.photo}))},null,1);
-const stamp=()=>ymd(new Date()).replace(/-/g,'');
+const stamp=()=>today().replace(/-/g,'');
 async function saveFile(filename,data){
   try{const b=data instanceof Blob?data:new Blob([data]);const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
   catch(e){toast('이 화면에서는 파일을 받을 수 없어요.')}
@@ -1237,7 +1241,7 @@ function sheetView(fresh){
       <div class="row" style="flex-wrap:nowrap"><input class="inp grow" id="newsc" placeholder="새 단계표 이름 (예: 마사지볼 통증 단계)" value="${esc(UI.newSc||'')}" data-in="newsc"><button class="btn" data-a="scAdd">추가</button></div>
       <button class="btn primary block" data-a="metricSheet">완료</button>`;
   }else if(s.kind==='check'){const t=curTag(),c=UI.ck;
-    h=`<h2>몸 상태 기록</h2><div class="field"><label for="ckdate">날짜</label><input class="inp" type="date" id="ckdate" max="${ymd(new Date())}" value="${c.date}" data-in="ckdate"></div>
+    h=`<h2>몸 상태 기록</h2><div class="field"><label for="ckdate">날짜</label><input class="inp" type="date" id="ckdate" max="${today()}" value="${c.date}" data-in="ckdate"></div>
       ${(t.metrics||[]).map(m=>ckField(m,c)).join('')}
       <textarea class="inp" id="ckmemo" rows="3" placeholder="메모 (예: 아침에 특히 뻐근함)" data-in="ckmemo">${esc(c.memo||'')}</textarea>
       <button class="btn primary block" data-a="checkSave">저장</button><button class="btn ghost" data-a="closeSheet">취소</button>`;
@@ -1300,7 +1304,7 @@ const A={
   mKind:d=>{const m=curTag().metrics.find(x=>x.id===d.id);if(m){m.kind=d.v;save()}},
   mDel:d=>{const t=curTag();const m=t.metrics.find(x=>x.id===d.id);if(!m)return;UI.sheet={kind:'confirm',text:`'${m.name}' 항목을 지울까요? 지난 기록의 이 항목 값은 표에서 더 이상 보이지 않아요.`,ok:'mDelOk',okLabel:'지우기',id:m.id,back:{kind:'metrics'}}},
   mDelOk:d=>{const t=curTag();t.metrics=t.metrics.filter(x=>x.id!==d.id);UI.sheet={kind:'metrics'};save()},
-  checkNew:()=>{const t=curTag();if(!(t.metrics||[]).length){UI.sheet={kind:'metrics'};return}UI.ck={id:null,date:ymd(new Date()),vals:{},memo:''};UI.sheet={kind:'check'}},
+  checkNew:()=>{const t=curTag();if(!(t.metrics||[]).length){UI.sheet={kind:'metrics'};return}UI.ck={id:null,date:today(),vals:{},memo:''};UI.sheet={kind:'check'}},
   checkEdit:d=>{const c=D.checks.find(x=>x.id===d.id);if(!c)return;UI.ck=clone(c);UI.sheet={kind:'check'}},
   ckStep:d=>{const v=ckTgt(d.id,d.s);const n=Math.max(0,Math.min(10,(v.v===''||v.v==null?(+d.d>0?-1:1):+v.v)+ +d.d));v.v=n;const inp=document.getElementById('ck-'+d.id+(d.s?'-'+d.s:''));if(inp){inp.value=n;return false}},
   poseEdit:d=>{const c=D.checks.find(x=>x.id===d.id);if(!c||!c.pic)return;UI.pose={id:c.id,date:c.date,asset:c.pic.a,src:photoSrc(c.pic.a),pts:clone(c.pic.p||{}),mirror:c.pic.m!==0,ar:c.pic.r||null};scrollTo(0,0)},
@@ -1329,7 +1333,7 @@ const A={
     D.checks=D.checks||[];if(c.id){const k=D.checks.findIndex(x=>x.id===c.id);if(k>=0)D.checks[k]=clone(c)}else D.checks.push({...clone(c),id:uid(),tag:t.id});UI.sheet=null;UI.ck=null;save();toast('몸 상태를 기록했어요')},
   checkDel:d=>{UI.sheet={kind:'confirm',text:'이 몸 상태 기록을 삭제할까요?',ok:'checkDelOk',okLabel:'삭제',id:d.id}},
   checkDelOk:d=>{const c=D.checks.find(x=>x.id===d.id);D.checks=D.checks.filter(x=>x.id!==d.id);UI.sheet=null;save();if(c&&c.pic)dropPic(c.pic.a)},
-  noteNew:()=>{UI.noteDraft={id:null,date:ymd(new Date()),text:''}},
+  noteNew:()=>{UI.noteDraft={id:null,date:today(),text:''}},
   noteEdit:d=>{const n=D.notes.find(x=>x.id===d.id);if(n){UI.noteDraft=clone(n);scrollTo(0,0)}},
   noteCancel:()=>{UI.noteDraft=null},
   noteSave:()=>{const n=UI.noteDraft;const hw=homework(curTag().id);const pts={};Object.entries(n.pts||{}).forEach(([k,o])=>{if(o&&o.t&&o.t.trim()){const h=hw.find(x=>x.key===k);pts[k]={n:h?h.name:(o.n||''),t:o.t.trim()}}});n.pts=pts;
@@ -1519,7 +1523,7 @@ document.addEventListener('input',e=>{
   else if(p[0]==='memo')D.session.memo=v;
   else if(p[0]==='sbw')D.session.bw=num(v);
   else if(p[0]==='sdur')D.session.dur=num(v);
-  else if(p[0]==='sdate'){if(v&&v<=ymd(new Date()))D.session.date=v;else return}
+  else if(p[0]==='sdate'){if(v&&v<=today())D.session.date=v;else return}
   else if(p[0]==='exprep')getEx(p[1]||UI.editEx).prep=num(v);
   else if(p[0]==='bw')D.body.kg=num(v);
   else if(p[0]==='rname')getR(UI.editR).name=v;
@@ -1538,11 +1542,11 @@ document.addEventListener('input',e=>{
   else if(p[0]==='newm'){UI.newMetric=v;return}
   else if(p[0]==='tagname'){const t=D.tags.find(x=>x.id===p[1]);if(t&&v.trim())t.name=v.trim()}
   else if(p[0]==='mname'){const m=(curTag().metrics||[]).find(x=>x.id===p[1]);if(m)m.name=v}
-  else if(p[0]==='ckdate'){if(v&&v<=ymd(new Date()))UI.ck.date=v;return}
+  else if(p[0]==='ckdate'){if(v&&v<=today())UI.ck.date=v;return}
   else if(p[0]==='ckv'){const x=ckTgt(p[1],p[2]);x.v=v===''?'':Math.max(0,Math.min(10,+v||0));return}
-  else if(p[0]==='pdate'){if(v&&v<=ymd(new Date()))UI.pose.date=v;return}
+  else if(p[0]==='pdate'){if(v&&v<=today())UI.pose.date=v;return}
   else if(p[0]==='ckmemo'){UI.ck.memo=v;return}
-  else if(p[0]==='ndate'){if(v&&v<=ymd(new Date()))UI.noteDraft.date=v;return}
+  else if(p[0]==='ndate'){if(v&&v<=today())UI.noteDraft.date=v;return}
   else if(p[0]==='ntext'){UI.noteDraft.text=v;return}
   else if(p[0]==='npt'){const key=p[1]+':'+p[2];const d=UI.noteDraft;d.pts=d.pts||{};(d.pts[key]=d.pts[key]||{n:'',t:''}).t=v;return}
   else if(p[0]==='sname'){const sc=(curTag().scales||[]).find(x=>x.id===p[1]);if(sc)sc.name=v}
