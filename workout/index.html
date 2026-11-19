@@ -419,7 +419,7 @@ function toRows(){const r={},put=(col,id,v)=>{r[col+'|'+id]=JSON.stringify(v)};
   CFG_KEYS.forEach(([k,pre])=>(cfg[k]||[]).forEach((x,i)=>put('meta',pre+':'+x.id,{...x,_o:i})));
   put('meta','wk_body',cfg.body||{kg:''});
   // 설정: 기록 항목·주간 목표·리포트 선택 / 기본 주간 계획 / 주별 계획(주마다 한 줄)
-  put('meta','wk_prefs',{fset:D.fset||null,wgoal:D.wgoal||null,cons:D.cons||null,gx:D.gx||null});
+  put('meta','wk_prefs',{fset:D.fset||null,wgoal:D.wgoal||null,cons:D.cons||null,gx:D.gx||null,flags:D.flags||null});
   const P=D.plan||{tpl:[],weeks:{}};put('meta','wk_plantpl',{tpl:P.tpl||[]});
   Object.entries(P.weeks||{}).forEach(([m,items])=>put('workouts','plan:'+m,{items}));
   D.logs.forEach(x=>put('workouts','log:'+x.id,x));
@@ -431,7 +431,7 @@ function fromRows(r,keepCfg){const g={};Object.entries(r).forEach(([k,str])=>{co
     CFG_KEYS.forEach(([k,pre])=>{D[k]=ord(meta.filter(([id])=>id.startsWith(pre+':')).map(([,v])=>v))});
     const b=meta.find(([id])=>id==='wk_body');D.body=b?b[1]:{kg:''}}
   {const meta=g.meta||[],pf=(meta.find(([id])=>id==='wk_prefs')||[])[1]||{},pt=(meta.find(([id])=>id==='wk_plantpl')||[])[1];
-   D.fset=pf.fset||undefined;D.wgoal=pf.wgoal||undefined;D.cons=pf.cons||undefined;D.gx=pf.gx||undefined;
+   D.fset=pf.fset||undefined;D.wgoal=pf.wgoal||undefined;D.cons=pf.cons||undefined;D.gx=pf.gx||undefined;D.flags=pf.flags||undefined;
    const weeks={};(g.workouts||[]).forEach(([id,v])=>{if(id.startsWith('plan:'))weeks[id.slice(5)]=v.items||[]});
    D.plan={tpl:pt?pt.tpl||[]:((D.plan&&D.plan.tpl)||[]),weeks};}
   const w=g.workouts||[],pick=pre=>w.filter(([id])=>id.startsWith(pre)).map(([,v])=>v);
@@ -561,13 +561,15 @@ function groupSets(fields,list,bw,wu){
 const TAGS={warmup:['워밍업','tag-w'],none:['위치 직접',''],cooldown:['정리운동','tag-c']};
 // 묶음 항목마다 고유 번호(이름을 바꿔도 기록이 이어지도록)와 단위(초/회)
 const areaName=id=>((D.areas||[]).find(a=>a.id===id)||{}).name||'';
-const AREA_DEFAULT=['가슴','등','어깨','하체','팔','코어'];
+const AREA_OLD=['목','어깨','가슴','등','허리','팔','손목','엉덩이','고관절','허벅지 앞','햄스트링','허벅지 안쪽','IT밴드','종아리','정강이','발목','발','코어','하체'];
 function areaIdFor(name){name=String(name||'').trim();if(!name)return null;D.areas=D.areas||[];let a=D.areas.find(x=>x.name===name);if(!a){a={id:uid(),name};D.areas.push(a)}else if(a.hidden)delete a.hidden;return a.id}
 function migrateBlocks(){let ch=false;
   // 묶음·교정(태그·몸 상태·수업 노트) 기능 삭제: 남은 데이터 정리
   if((D.blocks||[]).length||D.routines.some(r=>r.items.some(i=>i.blockId))){D.routines.forEach(r=>{r.items=r.items.filter(i=>!i.blockId)});D.blocks=[];ch=true}
   ['tags','notes','checks'].forEach(k=>{if((D[k]||[]).length){D[k]=[];ch=true}});
-  if(!D.areas||!D.areas.length){D.areas=AREA_DEFAULT.map(n=>({id:uid(),name:n}));ch=true}
+  // 부위 기본 목록 없음: 예전에 자동으로 깔린 부위 중 종목·주간 목표에서 안 쓰는 것은 한 번 지움
+  D.flags=D.flags||{};if(!D.flags.areasCleared){const used=new Set([...D.ex.flatMap(exAreas),...((D.wgoal&&D.wgoal.list)||[]).filter(x=>x.kind==='area').map(x=>x.ref)]);
+    const before=(D.areas||[]).length;D.areas=(D.areas||[]).filter(a=>used.has(a.id)||!AREA_OLD.includes(a.name));D.flags.areasCleared=1;if(D.areas.length!==before||true)ch=true}
   (D.tags||[]).forEach(t=>(t.metrics||[]).forEach(m=>{if(Array.isArray(m.levels)){const L=m.levels.filter(x=>x&&x.trim());if(L.length>=2&&!m.scaleId){t.scales=t.scales||[];const sc={id:uid(),name:m.name+' 단계',levels:[...L].reverse()};t.scales.push(sc);m.scaleId=sc.id}delete m.levels;ch=true}}));
   (D.blocks||[]).forEach(b=>(b.items||[]).forEach(p=>{if(!Array.isArray(p.areas)){p.areas=p.area?[areaIdFor(p.area)]:[];delete p.area;ch=true}}));(D.blocks||[]).forEach(b=>(b.items||[]).forEach(p=>{if(!p.id){p.id=uid();ch=true}if(!p.unit){p.unit='sec';ch=true}}));return ch}
 const tagBadges=ids=>''; // 교정 태그 삭제
@@ -1597,6 +1599,12 @@ Object.assign(A,{
     if(s.id)L.find(x=>x.id===s.id).name=n;else{const h=L.find(x=>x.name===n);if(h)delete h.hidden;else{const x={id:uid(),name:n};L.push(x);
       if(s.k==='cat'&&UI.editEx)getEx(UI.editEx).cat=x.id;else if(s.k==='rcat'&&UI.editR)getR(UI.editR).cat=x.id;else if(s.k==='area'&&UI.editEx){const ex=getEx(UI.editEx);ex.areas=[...exAreas(ex),x.id];delete ex.area}}}
     save();UI.sheet=null},
+  tagDel:()=>{const s=UI.sheet;if(tagUsers(s.k,s.id).length){s.ask=true;return}A.tagDelOk()},
+  tagDelOk:()=>{const s=UI.sheet,L=tagSrc(s.k);
+    if(s.k==='cat'){D.ex.forEach(e=>{if(e.cat===s.id)delete e.cat});const k=L.findIndex(x=>x.id===s.id);if(k>=0)L.splice(k,1);if(UI.cat===s.id)UI.cat='all'}
+    else if(s.k==='rcat'){D.routines.forEach(r=>{if(r.cat===s.id)delete r.cat});const k=L.findIndex(x=>x.id===s.id);if(k>=0)L.splice(k,1);if(UI.rcat===s.id)UI.rcat='all'}
+    else{D.ex.forEach(e=>{const a=exAreas(e).filter(x=>x!==s.id);delete e.area;if(a.length)e.areas=a;else delete e.areas});const a=L.find(x=>x.id===s.id);if(a)a.hidden=true}
+    const g=wgoal();g.list=g.list.filter(x=>!(x.ref===s.id));save();UI.sheet=null;toast('지웠어요')},
   gEdit:()=>{UI.gEdit=!UI.gEdit;UI.gAreaEd=false},
   gAdd:d=>{const g=wgoal(),k=g.list.findIndex(x=>x.kind===d.k&&x.ref===d.id);if(k>=0){g.list.splice(k,1)}else{const c=d.k==='cat'&&D.cats.find(x=>x.id===d.id);g.list.push({id:uid(),kind:d.k,ref:d.id,n:c&&/유산소|존|러닝|cardio/i.test(c.name)?60:10,unit:c&&/유산소|존|러닝|cardio/i.test(c.name)?'min':'set'})}save()},
   gUnit:d=>{const x=wgoal().list.find(y=>y.id===d.id);x.unit=x.unit==='min'?'set':'min';save()},
