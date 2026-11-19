@@ -10,7 +10,7 @@
 
 
 
-.edtop{position:sticky;top:0;z-index:15;background:var(--bg);padding:8px 0;margin-top:-8px}
+.typing .edtop{position:relative}.edtop{position:sticky;top:0;z-index:15;background:var(--bg);padding:8px 0;margin-top:-8px}
 
 .catbar{display:flex;align-items:flex-start;gap:8px}.catbar>.chips{flex:1;min-width:0}.catbar .newbtn{flex:none;min-height:32px;padding:0 10px;font-size:13px;margin-top:3px;background:transparent;color:var(--accent);border:1px solid var(--accent);box-shadow:none}
 .pchip.ins-b{box-shadow:-4px 0 0 0 var(--ink)}.pchip.ins-a{box-shadow:4px 0 0 0 var(--ink)}
@@ -444,7 +444,15 @@ async function api(method,payload,ms=45000){if(!CONN)throw new Error('연결 안
 const beginEdit=(root,id)=>{if(!UI.edit)UI.edit={root,id:id||null,orig:JSON.stringify(cfgOf())}};
 function applyCfg(x){D.cats=x.cats||[];D.ex=x.ex||[];D.areas=x.areas||[];D.rcats=x.rcats||[];D.routines=x.routines||[];D.body=x.body||{kg:''}}
 const editDirty=()=>!!UI.edit&&JSON.stringify(cfgOf())!==UI.edit.orig;
-const APPV='11.20-8';
+const APPV='11.20-9';
+let DBG=false,dbgN=0,dbgT=0,dbgLog=[];try{DBG=localStorage.getItem('wk_dbg')==='1'}catch(_){}
+function dbg(ev){if(!DBG)return;const vv=window.visualViewport,a=document.activeElement,r=a&&a.getBoundingClientRect?a.getBoundingClientRect():{top:0};
+  dbgLog.unshift(`${ev} y${Math.round(scrollY)} vt${vv?Math.round(vv.offsetTop):'-'} vh${vv?Math.round(vv.height):'-'} el${Math.round(r.top)} ${a&&a.dataset&&a.dataset.in||a.tagName}`);dbgLog=dbgLog.slice(0,9);
+  let o=document.getElementById('dbgbox');if(!o){o=document.createElement('pre');o.id='dbgbox';o.style.cssText='position:fixed;right:4px;bottom:90px;z-index:99;background:rgba(0,0,0,.75);color:#fff;font:11px/1.35 monospace;padding:6px;margin:0;border-radius:6px;pointer-events:none;max-width:70vw;white-space:pre-wrap';document.body.appendChild(o)}
+  if(vv){o.style.top=(vv.offsetTop+4)+'px';o.style.bottom='auto'}o.textContent=dbgLog.join('\n')}
+['focusin','focusout','touchend','input'].forEach(k=>document.addEventListener(k,()=>setTimeout(()=>dbg(k),0),true));
+addEventListener('scroll',()=>dbg('scroll'),{passive:true,capture:true});
+if(window.visualViewport){visualViewport.addEventListener('scroll',()=>dbg('vvscroll'));visualViewport.addEventListener('resize',()=>dbg('vvresize'))}
 function endEdit(keep){if(!UI.edit)return;const E=UI.edit;UI.edit=null;if(!keep)applyCfg(JSON.parse(E.orig));else fillNames();save()}
 // 이름 칸을 비워 둔 채 저장하면 기본 이름으로 채움(입력칸은 비워 두고 회색 예시만 보여 줌)
 function fillNames(){D.routines.forEach(r=>{if(!String(r.name||'').trim())r.name='새 루틴'});D.ex.forEach(e=>{if(!String(e.name||'').trim())e.name='새 종목';e.levels.forEach((l,k)=>{if(!String(l.name||'').trim())l.name=e.levels.length>1?`${k+1}단계`:'기본'})})}
@@ -704,7 +712,7 @@ function sinceLast(rid,excludeToday){const t=today();let last='';(logIdx().r[rid
    goal: 한 번의 운동에서 sets세트 이상이 f ≥ v / count: 그 단계로 n번(per:'day' 하루 1번 / 'each' 할 때마다) */
 function critCheck(ex,l){const c=l.crit;if(!c||!c.type)return null;
   const ls=D.logs.filter(g=>g.items.some(e=>e.exId===ex.id&&e.levelId===l.id));
-  if(c.type==='goal'){const f=c.f||l.fields[0],v=+c.v||0,need=+c.sets||1;let best=0;
+  if(c.type==='goal'){const f=c.f||l.fields[0],v=+c.v||0,need=c.sets===''||c.sets==null?3:(+c.sets||1);let best=0;
     ls.forEach(g=>g.items.filter(e=>e.exId===ex.id&&e.levelId===l.id).forEach(e=>{const k=(e.sets||[]).filter(x=>x.done!==false&&+((x.vals||{})[f])>=v).length;if(k>best)best=k}));
     return {ok:v>0&&best>=need,text:`${need}세트 × ${FIELDS[f]?FIELDS[f][0]:f} ${v}${FIELDS[f]?FIELDS[f][1]:''} 이상`,prog:`가장 좋았던 날 ${Math.min(best,need)}/${need}세트`}}
   const n=c.per==='each'?ls.length:new Set(ls.map(g=>g.date)).size,need=+c.n||1;
@@ -1200,7 +1208,7 @@ function viewLibrary(){
    :`<p class="sub">아이패드·아이폰에서 홈 화면 앱으로 쓰면 앱마다 저장 공간이 따로라서, 저널의 연결이 운동 앱에 넘어오지 않아요. 아래에서 직접 연결하세요.</p>
     <div class="field"><label for="cc">연결 코드 <span class="unit">저널 설정 → 구글 시트 저장소 → '연결 코드 복사'</span></label><textarea class="inp" id="cc" rows="2" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="JNL1:… 붙여넣기"></textarea></div>
     <details><summary class="sub">웹 앱 주소·TOKEN 직접 넣기</summary><div class="field"><label for="cu">웹 앱 주소</label><input class="inp" id="cu" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://script.google.com/…/exec"></div><div class="field"><label for="ct">TOKEN</label><input class="inp" id="ct" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></div></details>
-    <button class="btn primary block" data-a="wkConnect">연결하기</button><p id="wkConnOut" class="muted" style="margin:6px 0 0;font-size:13px;word-break:break-all"></p><p class="sub">안드로이드처럼 저널과 저장 공간을 함께 쓰는 기기는 저널에서 연결한 뒤 이 화면을 새로고침해도 돼요.</p>`}<p class="sub" style="margin:10px 0 0;font-size:12px">앱 버전 ${APPV}</p></div>`;
+    <button class="btn primary block" data-a="wkConnect">연결하기</button><p id="wkConnOut" class="muted" style="margin:6px 0 0;font-size:13px;word-break:break-all"></p><p class="sub">안드로이드처럼 저널과 저장 공간을 함께 쓰는 기기는 저널에서 연결한 뒤 이 화면을 새로고침해도 돼요.</p>`}<p class="sub" style="margin:10px 0 0;font-size:12px" data-a="dbgTap">앱 버전 ${APPV}${DBG?' · 진단 켜짐':''}</p></div>`;
   if(seg==='ex')return libHead(seg)+`
   <input class="inp" id="q" placeholder="종목 이름으로 찾기" value="${esc(UI.q)}" data-in="q">
   <div class="catbar"><div class="chips"><button class="chip ${UI.cat==='all'?'on':''}" data-a="cat" data-id="all">전체</button>
@@ -1241,7 +1249,7 @@ function viewExEditor(){
         ${multi&&k<ex.levels.length-1?(()=>{const c=l.crit||{},t=c.type||'none',r=critCheck(ex,l);
           return `<div class="crit"><span class="sub">다음 단계로 넘어가는 기준</span>
           <div class="seg" style="grid-template-columns:1fr 1fr 1fr"><button class="${t==='none'?'on':''}" data-a="critType" data-k="${k}" data-t="none">없음</button><button class="${t==='goal'?'on':''}" data-a="critType" data-k="${k}" data-t="goal">목표 달성</button><button class="${t==='count'?'on':''}" data-a="critType" data-k="${k}" data-t="count">횟수 채우기</button></div>
-          ${t==='goal'?`<div class="row" style="flex-wrap:wrap;gap:6px"><input class="n" style="width:56px" inputmode="numeric" value="${c.sets??''}" data-in="crit:${k}:sets" aria-label="세트 수"><span>세트 모두</span>
+          ${t==='goal'?`<div class="row" style="flex-wrap:wrap;gap:6px"><input class="n" style="width:56px" inputmode="numeric" value="${c.sets??''}" placeholder="3" data-in="crit:${k}:sets" aria-label="세트 수"><span>세트 모두</span>
             <select class="inp" style="width:auto" data-in="crit:${k}:f">${l.fields.map(f=>`<option value="${f}" ${c.f===f?'selected':''}>${esc(FIELDS[f][0])}</option>`).join('')}</select>
             <input class="n" style="width:64px" inputmode="decimal" value="${c.v??''}" data-in="crit:${k}:v" aria-label="기준 값"><span>${esc(FIELDS[c.f]?FIELDS[c.f][1]:'')} 이상</span></div>`:''}
           ${t==='count'?`<div class="row" style="flex-wrap:wrap;gap:6px"><span>이 단계로</span><input class="n" style="width:64px" inputmode="numeric" value="${c.n??''}" data-in="crit:${k}:n" aria-label="횟수"><span>번</span>
@@ -1564,6 +1572,7 @@ document.addEventListener('pointerdown',e=>{const g=e.target.closest('.grab');if
 });
 
 Object.assign(A,{
+  dbgTap:()=>{const n=Date.now();dbgN=n-dbgT<800?dbgN+1:1;dbgT=n;if(dbgN>=5){dbgN=0;DBG=!DBG;try{localStorage.setItem('wk_dbg',DBG?'1':'0')}catch(_){}toast(DBG?'진단 켜짐':'진단 꺼짐');if(!DBG){const o=document.getElementById('dbgbox');if(o)o.remove()}return}return false},
   libSeg:d=>{UI.libSeg=d.v;UI.editEx=null;UI.editB=null;scrollTo(0,0)},
 });
 Object.assign(A,{
@@ -1602,7 +1611,7 @@ Object.assign(A,{
   lvYes:()=>{const s=UI.sheet,u=s.list.shift(),ex=getEx(u.exId);D.routines.forEach(r=>r.items.forEach(i=>{if(i.exId===u.exId&&i.levelId===u.from)i.levelId=u.to}));
     save();toast(`${ex.name}: ${ex.levels.findIndex(l=>l.id===u.to)+1}단계로 올렸어요`);if(!s.list.length)UI.sheet=null},
   lvNo:()=>{const s=UI.sheet;s.list.shift();if(!s.list.length)UI.sheet=null},
-  critType:d=>{const l=getEx(UI.editEx).levels[+d.k];if(d.t==='none')delete l.crit;else l.crit={type:d.t,...(d.t==='goal'?{f:l.fields[0]||'reps',v:'',sets:3}:{n:10,per:'day'})}},
+  critType:d=>{const l=getEx(UI.editEx).levels[+d.k];if(d.t==='none')delete l.crit;else l.crit={type:d.t,...(d.t==='goal'?{f:l.fields[0]||'reps',v:'',sets:''}:{n:10,per:'day'})}},
   critPer:d=>{getEx(UI.editEx).levels[+d.k].crit.per=d.v},
   tagEdMode:d=>{UI.tagEd=UI.tagEd===d.k?null:d.k},
   tagEdit:d=>{const x=tagSrc(d.k).find(y=>y.id===d.id);UI.sheet={kind:'tedit',k:d.k,id:d.id||'',name:x?x.name:'',name0:x?x.name:'',ask:false}},
@@ -1720,12 +1729,13 @@ document.addEventListener('focusin',e=>{const t=e.target;if(!isField(t)||!t.clos
   if(t.tagName==='INPUT'&&(/numeric|decimal/.test(t.inputMode||'')||/(^| )(n|num)( |$)/.test(t.className))&&t.value!==''){const sel=()=>{try{if(document.activeElement===t)t.setSelectionRange(0,t.value.length)}catch(_){}};setTimeout(sel,0);setTimeout(sel,80);t.addEventListener('mouseup',ev=>ev.preventDefault(),{once:true})}
   FX={t,box:t.closest('.sheet'),want:visY(t)};clearTimeout(fixT);
   fixT=setTimeout(keepField,350);[60,160,600,900].forEach(ms=>setTimeout(()=>keepField(),ms));if(window.visualViewport)visualViewport.addEventListener('resize',function once(){visualViewport.removeEventListener('resize',once);clearTimeout(fixT);fixT=setTimeout(keepField,120)})});
-document.addEventListener('focusout',()=>{setTimeout(()=>{if(FX&&document.activeElement!==FX.t)FX=null},0)});
+document.addEventListener('focusout',()=>{setTimeout(()=>{const a=document.activeElement;if(!isField(a))document.documentElement.classList.remove('typing');if(FX&&a!==FX.t)FX=null},0)});
+document.addEventListener('focusin',e=>{if(isField(e.target)&&e.target.closest('#app'))document.documentElement.classList.add('typing')},true);
 // 손가락으로 직접 스크롤한 건 그대로 두고, 그 자리를 새 기준으로 삼음
 document.addEventListener('touchstart',()=>{touching=true;moved=false},{passive:true,capture:true});
 document.addEventListener('touchmove',()=>{moved=true},{passive:true,capture:true});
 document.addEventListener('touchend',e=>{const t=e.target;if(moved||!isField(t)||!t.closest('#app')||document.activeElement===t||t.disabled||t.readOnly)return;
-  e.preventDefault();try{t.focus({preventScroll:true})}catch(_){t.focus()}
+  e.preventDefault();const cur=document.activeElement;if(cur&&cur!==document.body&&isField(cur)){FX=null;cur.blur()}try{t.focus({preventScroll:true})}catch(_){t.focus()}
   if(t.tagName!=='TEXTAREA'&&!/numeric|decimal/.test(t.inputMode||'')){try{const n=t.value.length;t.setSelectionRange(n,n)}catch(_){}}},{passive:false,capture:true});
 document.addEventListener('touchend',()=>{touching=false;if(!moved)return;lastDrag=Date.now();setTimeout(()=>{if(FX&&document.activeElement===FX.t)FX.want=visY(FX.t)},450)},{passive:true,capture:true});
 // 글자를 칠 때나 기기가 저절로 스크롤할 때 입력칸이 튀면 되돌림
