@@ -1194,7 +1194,10 @@ function viewLibrary(){
   <div class="card"><h2>저장소</h2>
    ${CONN?`<label class="sub">사용할 시트 <select class="inp" data-wkenv="1"><option value="test" ${CONN.env==='test'?'selected':''}>테스트 (저널_테스트)</option><option value="prod" ${CONN.env==='prod'?'selected':''}>실사용 (저널_실사용)</option></select></label>
    <div class="grid two" style="margin-top:8px"><button class="btn soft" data-a="syncNow">지금 동기화</button><a class="btn ghost" href="../">저널 열기</a></div>`
-   :`<p class="sub">저널의 설정에서 구글 시트 저장소를 연결하면 운동 앱도 같은 연결을 써요. 연결한 뒤 이 화면을 새로고침하세요.</p><a class="btn soft block" href="../">저널에서 연결하기</a>`}</div>`;
+   :`<p class="sub">아이패드·아이폰에서 홈 화면 앱으로 쓰면 앱마다 저장 공간이 따로라서, 저널의 연결이 운동 앱에 넘어오지 않아요. 아래에서 직접 연결하세요.</p>
+    <div class="field"><label for="cc">연결 코드 <span class="unit">저널 설정 → 구글 시트 저장소 → '연결 코드 복사'</span></label><textarea class="inp" id="cc" rows="2" placeholder="JNL1:… 붙여넣기"></textarea></div>
+    <details><summary class="sub">웹 앱 주소·TOKEN 직접 넣기</summary><div class="field"><label for="cu">웹 앱 주소</label><input class="inp" id="cu" placeholder="https://script.google.com/…/exec"></div><div class="field"><label for="ct">TOKEN</label><input class="inp" id="ct" type="password" autocomplete="off"></div></details>
+    <button class="btn primary block" data-a="wkConnect">연결하기</button><p class="sub">안드로이드처럼 저널과 저장 공간을 함께 쓰는 기기는 저널에서 연결한 뒤 이 화면을 새로고침해도 돼요.</p>`}</div>`;
   if(seg==='ex')return libHead(seg)+`
   <input class="inp" id="q" placeholder="종목 이름으로 찾기" value="${esc(UI.q)}" data-in="q">
   <div class="catbar"><div class="chips"><button class="chip ${UI.cat==='all'?'on':''}" data-a="cat" data-id="all">전체</button>
@@ -1534,6 +1537,12 @@ const A={
   expJson:()=>{saveFile(`오운완_전체데이터_${stamp()}.json`,exportJson());return false},
   expCsv:()=>{saveFile(`오운완_세트기록_${stamp()}.csv`,exportCsv());return false},
   expPhotos:()=>{exportPhotos();return false},
+  wkConnect:()=>{(async()=>{let url=(document.getElementById('cu')||{}).value||'',token=(document.getElementById('ct')||{}).value||'';const code=((document.getElementById('cc')||{}).value||'').trim();
+    if(code){try{const o=JSON.parse(decodeURIComponent(escape(atob(code.replace(/^JNL1:/,'').trim()))));url=o.url;token=o.token}catch(e){toast('연결 코드를 읽을 수 없어요. 다시 복사해 주세요.');return}}
+    url=url.trim();token=token.trim();if(!/^https:\/\/script\.google\.com\/.+\/exec/.test(url)||!token){toast('연결 코드나 웹 앱 주소·TOKEN을 넣어 주세요.');return}
+    const keep=CONN;CONN={url,token,env:'test'};toast('연결 확인 중…');
+    try{await api('GET',{action:'ping'},30000)}catch(e){CONN=keep;toast('연결하지 못했어요. 주소와 TOKEN을 확인해 주세요.');return}
+    try{localStorage.setItem('jnl_conn',JSON.stringify({url,token,env:'prod'}))}catch(e){}toast('연결했어요. 다시 여는 중…');setTimeout(()=>location.reload(),600)})();return false},
   syncNow:()=>{(async()=>{if(dirty)await flush();await pull();render();toast(syncErr?'동기화하지 못했어요. 연결을 확인해 주세요.':'동기화했어요')})();return false},
   importOk:()=>{const o=UI.pendingImport;if(!o)return;o.logs.forEach(l=>{if(l.photo&&!/^[0-9a-f]{32}$/.test(l.photo)&&!String(l.photo).startsWith('data:'))l.photo=null});
     D.cats=o.cats;D.ex=o.ex;D.areas=o.areas||[];D.rcats=o.rcats||[];D.routines=o.routines;D.body=o.body||{kg:''};D.logs=o.logs;D.plan=o.plan||{tpl:[],weeks:{}};D.fset=o.fset;D.wgoal=o.wgoal;D.cons=o.cons;D.gx=o.gx;migrateBlocks();applyFields();UI.pendingImport=null;UI.sheet=null;save();toast('불러왔어요')},

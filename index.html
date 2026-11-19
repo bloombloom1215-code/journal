@@ -1750,7 +1750,7 @@ function viewConn(){
       <label class="f">웹 앱 주소 <span class="hint" style="font-weight:400">…/exec 로 끝나는 주소</span><input class="field" id="cn_url" value="${esc(c.url)}" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></label>
       <label class="f">TOKEN<input class="field" id="cn_token" type="password" value="${esc(c.token)}" autocomplete="off"></label>
       <label class="f">사용할 시트<select class="field" id="cn_env"><option value="prod" ${c.env === 'prod' ? 'selected' : ''}>실사용 (저널_실사용)</option><option value="test" ${c.env === 'test' ? 'selected' : ''}>테스트 (저널_테스트)</option></select></label>
-      <div class="btns"><button class="btn pri" data-act="conn-save">${CONN ? '다시 연결' : '연결하기'}</button>${CONN ? '<button class="btn" data-act="sync-now">지금 동기화</button><button class="btn" data-act="conn-off">이 기기에서 연결 해제</button>' : ''}</div>
+      <div class="btns"><button class="btn pri" data-act="conn-save">${CONN ? '다시 연결' : '연결하기'}</button>${CONN ? '<button class="btn" data-act="conn-code">운동 앱 연결 코드 복사</button><button class="btn" data-act="sync-now">지금 동기화</button><button class="btn" data-act="conn-off">이 기기에서 연결 해제</button>' : ''}</div>
       <p class="hint" id="connOut">${CONN ? `연결됨 · ${CONN.env === 'prod' ? '실사용' : '테스트'} 시트${lastSync ? ` · 마지막 동기화 ${new Date(lastSync).toLocaleString('ko-KR', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })}` : ''}${syncErr ? ` · 오류: ${esc(syncErr.message || String(syncErr))}` : ''}` : '연결 정보는 이 기기에만 저장돼요. 기기마다 한 번씩 넣어 주세요.'}</p>
     </div></section>`;
 }
@@ -2086,6 +2086,11 @@ document.addEventListener('click', async e => {
       if (switching){ if (okPull) SYNC_COLS.forEach(c => Object.keys(pre[c]).forEach(id => { if (SAVED[c][id] === pre[c][id]) delete SAVED[c][id]; })); else SYNC_COLS.forEach(c => SAVED[c] = {}); }
       carryOver(); schedulePush(0); doRender(); toast(`${env === 'prod' ? '실사용' : '테스트'} 시트에 연결했어요.`); break;
     }
+    case 'conn-code': { // 아이패드 홈 화면 앱처럼 저장 공간이 따로인 앱(운동 등)에 붙여넣을 연결 코드
+      const code = 'JNL1:' + btoa(unescape(encodeURIComponent(JSON.stringify({ url:CONN.url, token:CONN.token }))));
+      try { await navigator.clipboard.writeText(code); toast('연결 코드를 복사했어요. 운동 앱 → 라이브러리 → ⚙ 설정 → 저장소에 붙여넣으세요.'); }
+      catch(e){ const o = document.getElementById('connOut'); if (o) o.innerHTML = `아래 코드를 길게 눌러 복사하세요:<br><textarea class="field" rows="3" readonly style="width:100%">${code}</textarea>`; }
+      return; }
     case 'sync-now': await pushNow(); await pullAll(); doRender(); toast(syncErr ? '동기화하지 못했어요. 연결을 확인하세요.' : '동기화했어요.'); break;
     case 'conn-off': if (!el.classList.contains('armed')){ el.classList.add('armed'); el.textContent = '한 번 더 누르면 해제'; break; }
       CONN = null; try { localStorage.removeItem('jnl_conn'); } catch(_){} syncErr = null; doRender(); toast('이 기기에서 연결을 해제했어요. 시트의 기록은 그대로예요.'); break;
