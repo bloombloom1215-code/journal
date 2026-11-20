@@ -1,0 +1,702 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>독서노트</title>
+<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#365a74"><link rel="apple-touch-icon" href="../icons/reading-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="독서노트">
+<script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{scope:"./"}).catch(()=>{}))</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+/* Layout: 상단 탭 + 노트북 2단(기록 | 열린 질문 패널), 폰에서는 1단. 블로그식 기록 블록. */
+:root{
+  --paper:#f4f6f5; --surface:#ffffff; --ink:#1d2427; --muted:#687378; --line:#dbe0de;
+  --accent:#365a74; --accent-soft:#e3ebf1; --q:#7f878b; --good:#3d7553; --warn:#a8742a;
+  --serif:"Gowun Batang","Nanum Myeongjo",Georgia,serif;
+  --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#141819; --surface:#1b2022; --ink:#e6e9e7; --muted:#9aa4a8; --line:#2c3437;
+  --accent:#93b4cd; --accent-soft:#223240; --q:#a6adb1; --good:#7fbf97; --warn:#d6a85c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#141819; --surface:#1b2022; --ink:#e6e9e7; --muted:#9aa4a8; --line:#2c3437;
+  --accent:#93b4cd; --accent-soft:#223240; --q:#a6adb1; --good:#7fbf97; --warn:#d6a85c; color-scheme:dark}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6}
+*{box-sizing:border-box}
+.wrap{max-width:1120px;margin:0 auto;padding-block:16px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 20px;margin-bottom:18px}
+header.top h1{font-family:var(--serif);font-size:22px;margin:0;font-weight:700}
+.proto{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:0 8px}
+.proto.warn{color:var(--warn);border-color:var(--warn)}
+.proto.ok{color:var(--good);border-color:var(--good)}
+nav.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:22px}
+nav.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;font:inherit;color:var(--muted);cursor:pointer}
+nav.tabs button.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+button,input,select,textarea{font:inherit;color:inherit}
+.btn{background:var(--accent);color:var(--paper);border:0;border-radius:6px;padding:6px 14px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+.btn.sm{padding:3px 10px;font-size:13px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 9px;min-width:0}
+textarea{width:100%;resize:vertical;min-height:70px;line-height:1.7}
+textarea.grow{min-height:280px;max-height:70vh;overflow-y:auto}
+h2{font-family:var(--serif);font-size:19px;margin:0 0 12px;text-wrap:balance}
+h3{font-size:12px;letter-spacing:.06em;color:var(--muted);margin:0 0 10px;font-weight:600}
+.muted{color:var(--muted)} .small{font-size:13px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:28px;align-items:start}
+@media (max-width:820px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{display:inline-block;font-size:12px;padding:1px 9px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
+.pill{font-size:12px;padding:1px 9px;border-radius:99px;border:1px solid currentColor;background:none;cursor:pointer}
+.st-열림{color:var(--warn)} .st-생각중{color:var(--accent)} .st-답이생김{color:var(--good)}
+/* 홈 */
+.stats{display:flex;gap:28px;flex-wrap:wrap;margin-bottom:26px}
+.stat b{display:block;font-family:var(--serif);font-size:34px;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-bottom:28px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card.done{opacity:.45}
+.card .kind{font-size:12px;color:var(--muted)}
+.card .sent{font-family:var(--serif);font-size:17px;line-height:1.7}
+.card .word{font-family:var(--serif);font-size:24px;font-weight:700}
+.card .acts{margin-top:auto;display:flex;gap:6px;flex-wrap:wrap}
+.bar{height:6px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+/* 블로그식 기록 */
+.entry{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:26px clamp(16px,4vw,40px);margin-bottom:16px}
+.entry .date{font-size:12px;color:var(--muted);margin-bottom:10px}
+.blk{position:relative;margin:18px 0}
+.blk .tools{position:absolute;right:-8px;top:-12px;display:flex;gap:2px;opacity:0;font-family:var(--sans);font-style:normal;z-index:1}
+.blk .tools button.t{border:0;background:var(--surface);color:var(--muted);cursor:pointer;font-size:13px;padding:2px 7px;border-radius:5px}
+.blk .tools button.t:hover{color:var(--accent)}
+.blk:hover .tools,.blk .tools:focus-within,.blk .tools.on{opacity:1}
+@media (hover:none){.blk .tools{opacity:1}}
+.blk.editing{text-align:left;font-style:normal;font-family:var(--sans);font-size:15px;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:12px}
+.b-인용,.b-질문{text-align:center;font-family:var(--serif);font-style:italic;font-size:18px;line-height:1.8;padding:8px 0}
+.b-인용::before,.b-인용::after,.b-질문::before,.b-질문::after{display:block;font-size:30px;line-height:.6;color:var(--line);font-style:normal}
+.b-인용::before,.b-질문::before{content:"\201C";margin-bottom:12px}
+.b-인용::after,.b-질문::after{content:"\201D";margin-top:16px}
+.b-질문{color:var(--q);font-size:16.5px}
+.b-생각{white-space:pre-wrap;max-width:62ch}
+.b-head{font-family:var(--serif);font-weight:700;font-size:16.5px;line-height:1.6;max-width:62ch}
+.b-detail{white-space:pre-wrap;max-width:62ch;margin-top:12px;padding-left:14px;border-left:2px solid var(--line);text-align:left;font-style:normal;font-family:var(--sans);font-size:15px;color:var(--ink)}
+.b-질문+.b-detail,.b-인용+.b-detail{margin:4px auto 0;max-width:56ch}
+.b-다짐{color:var(--accent);border-left:2px solid var(--accent);padding-left:10px}
+.qmeta{font-family:var(--sans);font-style:normal;font-size:12px;display:flex;justify-content:center;gap:8px;margin-top:6px}
+.linkline{font-size:13px;color:var(--muted);margin-top:6px}
+.linkline a,.qlink{color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.page{font-size:12px;color:var(--muted)}
+.divider{text-align:left;color:var(--muted);letter-spacing:.5em;margin:22px 0 10px}
+.vlist{list-style:disc;padding-left:20px;margin:0}
+.cmp{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.cmp-grid{display:grid;gap:0;border-top:1px solid var(--line)}
+.cmp-grid .col{padding:10px 12px;border-left:1px solid var(--line);min-width:0;display:flex;flex-direction:column;gap:4px}
+.cmp-grid .col:first-child{border-left:0;padding-left:0}
+.cmp-grid .w{font-family:var(--serif);font-size:20px;font-weight:700}
+.cmp-grid .ex{margin-top:auto;padding-top:6px}
+.cmp .diff{gap:8px}
+.t-반대말{background:transparent;color:var(--warn);border:1px solid var(--warn)}
+.t-헷갈리는말{background:transparent;color:var(--good);border:1px solid var(--good)}
+@media (max-width:520px){.cmp-grid{grid-template-columns:minmax(0,1fr)!important}.cmp-grid .col{border-left:0;border-top:1px solid var(--line);padding-left:0}.cmp-grid .col:first-child{border-top:0}}
+.vcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;align-items:start}
+.vcard{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.vcard.child{background:var(--paper);border:0;border-left:2px solid var(--accent);border-radius:0 8px 8px 0;padding:10px 12px}
+.vcard .t{border:0;background:none;color:var(--muted);cursor:pointer;font-size:12px;padding:2px 4px}
+.vcard .t:hover{color:var(--accent)}
+.vw{font-family:var(--serif);font-size:19px}
+.vh{font-family:var(--serif);color:var(--muted);font-size:15px}
+.hrow{gap:6px}
+.hchip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--paper);border-radius:6px;padding:1px 8px 1px 4px;font-size:13px;cursor:pointer;color:var(--ink)}
+.hchip span{font-family:var(--serif);font-size:17px;color:var(--accent)}
+.hchip:hover{border-color:var(--accent)}
+.hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;align-content:start}
+.hcell{display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:8px 4px;cursor:pointer;color:var(--ink);position:relative}
+.hcell b{font-family:var(--serif);font-size:26px;font-weight:400}
+.hcell span{font-size:12px;color:var(--muted)}
+.hcell i{position:absolute;top:4px;right:7px;font-style:normal;font-size:11px;color:var(--accent)}
+.hcell.on{border-color:var(--accent);background:var(--accent-soft)}
+.credits{display:flex;flex-wrap:wrap;gap:4px 14px;margin:2px 0 4px}
+.cred{display:inline-flex;align-items:center;gap:5px}
+.mk{font-size:11px;padding:0 7px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.mk-bad{color:var(--warn)} .mk-good{color:var(--good)}
+.warn{color:var(--warn);min-height:0}
+.mrow{gap:6px;margin-top:4px}
+.bswitch{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.bswitch>.row{flex:1 1 360px;min-width:0}
+.chips{display:flex;gap:6px;overflow-x:auto;flex:1;min-width:0;padding:2px;scrollbar-width:thin}
+.bchip{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:99px;padding:3px 12px;cursor:pointer;font-size:13px;white-space:nowrap}
+.bchip.on{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+.bchip.rec{border-style:dashed;color:var(--muted)}
+.tlabel{flex:none;align-self:center;font-size:12px;color:var(--accent);font-weight:600;padding-right:4px}
+.chips .sep{flex:none;width:1px;background:var(--line);margin:2px 4px}
+.bsearch{position:relative;flex:0 1 280px;min-width:0}
+.bsearch input{width:100%}
+.bres{position:absolute;left:0;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--line);border-radius:8px;z-index:5;max-height:320px;overflow:auto;box-shadow:0 6px 20px rgba(0,0,0,.08)}
+.bhit{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 12px;cursor:pointer;color:var(--ink)}
+.bhit:hover,.bhit:focus-visible{background:var(--accent-soft)}
+.btn:disabled{opacity:.35;cursor:default}
+.brow{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+.tnum{font-variant-numeric:tabular-nums}
+.yr summary{cursor:pointer;padding:6px 0}
+.t{border:0;background:none;color:var(--muted);cursor:pointer;font-size:12px;padding:2px 4px;flex:none}
+.t:hover{color:var(--accent)}
+.slots{display:grid;gap:clamp(3px,0.8vw,8px);width:100%}
+.slots .s,.legend .s{display:inline-block;width:auto;height:34px;border-radius:4px;border:1.5px solid var(--line);background:transparent}
+.slots.sm .s{height:14px;border-radius:2px;border-width:1px}
+.slots .s.done,.legend .s.done{background:var(--accent);border-color:var(--accent)}
+.slots .s.over{background:var(--good);border-color:var(--good)}
+.slots .s.now,.legend .s.now{border-color:var(--accent);background:repeating-linear-gradient(135deg,var(--accent-soft) 0 4px,transparent 4px 8px)}
+.legend{display:inline-flex;align-items:center;gap:4px;color:var(--muted)}
+.legend .s{width:10px;height:13px;margin-left:6px;vertical-align:middle;border-width:1.5px}
+.gnum{font-family:var(--serif);font-size:30px;font-variant-numeric:tabular-nums}
+.gnum span{font-size:16px;color:var(--muted);font-weight:400}
+.gpct{font-size:14px;color:var(--accent);font-weight:600}
+.gpct.ok,.gok{color:var(--good);font-weight:600}
+.composer .f{display:flex;flex-direction:column;gap:4px}
+.composer label{font-size:12px;color:var(--muted)}
+.q-item{padding:10px 0;border-top:1px solid var(--line)}
+.q-item:first-of-type{border-top:0}
+.chain{border-left:1px solid var(--line);margin-left:6px;padding-left:14px}
+.chain .c{margin:12px 0}
+.list .it{padding:14px 0;border-top:1px solid var(--line);min-width:0}
+.list .it:first-child{border-top:0}
+.booklink{cursor:pointer;color:var(--ink);background:none;border:0;padding:0;text-align:left;font-weight:600}
+.booklink:hover{color:var(--accent)}
+.tree .sub{padding-left:18px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--paper);padding:8px 16px;border-radius:8px;font-size:14px}
+@media (prefers-reduced-motion:no-preference){.card{transition:opacity .2s}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>독서노트</h1>
+    <span class="proto" id="mode">불러오는 중</span>
+  </header>
+  <nav class="tabs" id="tabs"></nav>
+  <main id="app"></main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const KEY='readlog-local-v1';
+const uid=()=>Math.random().toString(36).slice(2,9);
+const pad=n=>String(n).padStart(2,'0');
+/* 하루 시작 기준: 저널 설정의 '다음 날로 넘어가는 시각'(같은 기기 저장값)을 따름 */
+const dayCut=()=>{const v=parseInt(localStorage.getItem('jnl_daycut'),10);return isNaN(v)?300:v};
+const todayStr=()=>{const d=new Date(Date.now()-dayCut()*60000);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const YEAR=String(new Date().getFullYear());
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- 저장: 저널 구글 시트(저널 API, 'meta' 탭의 rd_ 줄) · 연결 전에는 이 기기 ----------
+   한 항목 = 시트 한 줄: id 'rd_<종류>:<항목id>', data = 항목 JSON. 저널은 meta의 settings만, 운동 앱은 wk_ 줄만 읽으므로 서로 겹치지 않음.
+   바뀐 줄만 0.8초 모아 올리고, 다른 기기 변경은 열 때·화면으로 돌아올 때·2분마다 가져옴. */
+const COLS=['topics','books','notes','links','expr','vocab','vgroups','marks'];
+const S={};COLS.forEach(c=>S[c]=[]);
+const RP='rd_';
+let CONN=(()=>{try{const c=JSON.parse(localStorage.getItem('jnl_conn')||'null');if(!c||!c.url||!c.token)return null;const e=localStorage.getItem('rd_env');return{...c,env:e==='prod'?'prod':'test'}}catch(e){return null}})();
+let MODE='connecting',SAVED={},lastSync=null,syncErr=null,flushT=null,retryT=null,flushing=false,pulling=false,dirtyS=false,errToast=false,booted=false,dirty=false;
+const ckey=()=>'rd_cache_'+(CONN?CONN.env:'local');
+function toRows(){const r={};COLS.forEach(c=>S[c].forEach(x=>{r[RP+c+':'+x.id]=JSON.stringify(x)}));return r}
+function fromRows(r){COLS.forEach(c=>S[c]=[]);Object.entries(r).forEach(([k,str])=>{const m=/^rd_([a-z]+):(.+)$/.exec(k);if(!m||!S[m[1]])return;try{S[m[1]].push({...JSON.parse(str),id:m[2]})}catch(e){}})}
+function writeCache(rows){try{localStorage.setItem(ckey(),JSON.stringify({rows:rows||toRows(),saved:SAVED,lastSync}))}catch(e){}}
+const hasDirty=()=>{const r=toRows();return Object.keys(r).some(k=>r[k]!==SAVED[k])||Object.keys(SAVED).some(k=>!(k in r))};
+async function api(method,payload,ms=45000){if(!CONN)throw new Error('연결 안 됨');const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),ms);
+  try{const body={token:CONN.token,env:CONN.env,...payload};
+    const res=method==='GET'?await fetch(CONN.url+'?'+new URLSearchParams({...body,_t:Date.now()}),{signal:ctl.signal,cache:'no-store'}):await fetch(CONN.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body),signal:ctl.signal});
+    const j=await res.json();if(!j.ok)throw new Error(j.error||'요청 실패');return j}finally{clearTimeout(tm)}}
+function status(){const m=document.getElementById('mode');if(!m)return;let t,c='';
+  if(MODE==='connecting'){t='불러오는 중'}
+  else if(MODE==='local'){t='이 기기에만 저장 · 구글 시트 연결 전';c='warn'}
+  else if(syncErr){t=navigator.onLine===false?'오프라인 · 연결되면 저장':'저장 실패 · 다시 시도 중';c='warn'}
+  else if(flushing||dirtyS){t='저장 중…'}
+  else if(pulling){t='불러오는 중…'}
+  else{t='구글 시트에 저장됨'+(CONN.env==='test'?' · 테스트':'');c='ok'}
+  m.textContent=t;m.className='proto '+c}
+function save(){
+  if(MODE!=='db'){try{localStorage.setItem('readlog-local-v1',JSON.stringify(S))}catch(e){}return}
+  dirtyS=true;status();clearTimeout(flushT);flushT=setTimeout(flush,800)}
+async function flush(){
+  if(MODE!=='db')return;
+  if(flushing){clearTimeout(flushT);flushT=setTimeout(flush,400);return}
+  flushing=true;dirtyS=false;status();
+  try{const rows=toRows();writeCache(rows);const at='t'+new Date().toISOString(),B=[];   // 't'로 시작: 시트가 날짜로 바꾸지 않게
+    Object.keys(rows).forEach(k=>{if(rows[k]!==SAVED[k])B.push({k,id:k,updatedAt:at,deleted:false,data:JSON.parse(rows[k])})});
+    Object.keys(SAVED).forEach(k=>{if(!(k in rows))B.push({k,id:k,updatedAt:at,deleted:true,data:{}})});
+    for(let i=0;i<B.length;i+=200){const part=B.slice(i,i+200);
+      await api('POST',{action:'upsert',col:'meta',records:part.map(({k,...x})=>x)});part.forEach(x=>{if(x.deleted)delete SAVED[x.k];else SAVED[x.k]=rows[x.k]})}
+    syncErr=null;errToast=false;lastSync=at.slice(1);writeCache(rows);
+  }catch(e){dirtyS=true;syncErr=e;
+    if(!errToast){errToast=true;toast(navigator.onLine===false?'오프라인이에요. 연결되면 자동으로 저장할게요.':'저장이 잠시 늦어지고 있어요. 자동으로 다시 시도합니다.')}
+    clearTimeout(retryT);retryT=setTimeout(flush,15000);
+  }finally{flushing=false;status();if(!syncErr&&dirtyS){clearTimeout(flushT);flushT=setTimeout(flush,300)}}}
+async function pull(){
+  if(MODE!=='db'||pulling||flushing||dirtyS)return;pulling=true;status();
+  try{const j=await api('GET',{action:'listAll'}),rows=toRows();let ch=false;
+    ((j.cols||{}).meta||[]).forEach(r=>{const k=String(r.id);if(!k.startsWith(RP))return;const inL=k in rows;
+      if(inL&&rows[k]!==SAVED[k])return;                       // 이 기기에서 아직 안 올린 변경 → 내 쪽 유지
+      if(!inL&&SAVED[k]!==undefined&&!r.deleted)return;          // 이 기기에서 지운 뒤 아직 안 올림
+      if(r.deleted){if(inL){delete rows[k];ch=true}delete SAVED[k];return}
+      const str=JSON.stringify(r.data);if(rows[k]!==str){rows[k]=str;ch=true}SAVED[k]=str});
+    if(ch)fromRows(rows);syncErr=null;lastSync=new Date().toISOString();writeCache(rows);if(ch&&booted)scheduleRender();
+  }catch(e){syncErr=e}finally{pulling=false;status()}}
+function put(col,obj){const a=S[col],i=a.findIndex(x=>x.id===obj.id);if(i<0)a.push(obj);else a[i]=obj;save()}
+function del(col,id){S[col]=S[col].filter(x=>x.id!==id);save()}
+function scheduleRender(){
+  const a=document.activeElement;
+  if(a&&a.closest&&a.closest('#app')&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)&&a.value){dirty=true;return}
+  cancelAnimationFrame(scheduleRender.f);scheduleRender.f=requestAnimationFrame(render)}
+document.addEventListener('focusout',()=>{if(dirty){dirty=false;setTimeout(()=>{const a=document.activeElement;if(!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)))render();else dirty=true},300)}});
+window.addEventListener('pagehide',()=>{if(dirtyS)flush()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){if(dirtyS)flush()}else pull()});
+window.addEventListener('online',()=>{if(dirtyS)flush();pull()});
+async function boot(){
+  if(!CONN){MODE='local';try{const x=JSON.parse(localStorage.getItem('readlog-local-v1'));if(x)COLS.forEach(c=>S[c]=x[c]||[])}catch(e){}booted=true;render();return}
+  MODE='db';
+  try{const c=JSON.parse(localStorage.getItem(ckey())||'null');if(c&&c.rows){fromRows(c.rows);SAVED=c.saved||{};lastSync=c.lastSync||null;render()}}catch(e){}
+  await pull();
+  if(syncErr&&!lastSync)toast('구글 시트에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.');
+  booted=true;render();
+  if(hasDirty()){dirtyS=true;flush()}
+  setInterval(()=>{if(!document.hidden)pull()},120000);
+}
+/* 연결: 저널 설정의 '연결 코드' 붙여넣기(같은 브라우저에서 저널을 이미 연결했다면 자동으로 연결됨) */
+async function connect(){
+  let url=(document.getElementById('cu')||{}).value||'',token=(document.getElementById('ct')||{}).value||'';
+  const raw=(document.getElementById('cc')||{}).value||'',m=raw.replace(/\s+/g,'').match(/(?:jnl1:)?(eyJ[A-Za-z0-9+/=_-]+)/i);
+  if(m){try{const o=JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,'+').replace(/_/g,'/')))));url=o.url;token=o.token}catch(e){toast('연결 코드를 읽지 못했어요. 저널 설정에서 다시 복사해 주세요.');return}}
+  else if(raw.trim()){toast('연결 코드를 읽지 못했어요. 저널 설정에서 다시 복사해 주세요.');return}
+  url=url.trim();token=token.trim();if(!/^https:\/\/script\.google\.com\/.+\/exec/.test(url)||!token){toast('연결 코드나 웹 앱 주소·TOKEN을 넣어 주세요.');return}
+  const keep=CONN;CONN={url,token,env:'test'};toast('연결 확인 중…');
+  try{await api('GET',{action:'ping'},40000)}catch(e){CONN=keep;toast('연결하지 못했어요: '+(e.message==='인증 실패'?'TOKEN이 맞지 않아요.':e.name==='AbortError'?'시트가 응답하지 않아요. 잠시 뒤 다시 눌러 주세요.':'인터넷 연결 또는 웹 앱 주소를 확인해 주세요.'));return}
+  try{if(!localStorage.getItem('jnl_conn'))localStorage.setItem('jnl_conn',JSON.stringify({url,token,env:'prod'}));else{const c=JSON.parse(localStorage.getItem('jnl_conn'));localStorage.setItem('jnl_conn',JSON.stringify({...c,url,token}))}}catch(e){}
+  toast('연결했어요. 다시 여는 중…');setTimeout(()=>location.reload(),600)}
+async function setEnv(v){if(!CONN||CONN.env===v)return;if(dirtyS||flushing){toast('저장을 마친 뒤 바꿀게요…');clearTimeout(flushT);await flush()}
+  try{localStorage.setItem('rd_env',v)}catch(e){}location.reload()}
+function connHTML(){
+  if(MODE==='db')return`<div class="stack" style="gap:8px">
+    <div class="small">${esc(syncErr?'저장 실패 · '+(syncErr.message||''):'연결됨')}${lastSync?` <span class="muted">· 마지막 동기화 ${esc(new Date(lastSync).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))}</span>`:''}</div>
+    <div class="row" style="gap:4px">${[['test','테스트 시트'],['prod','실사용 시트']].map(([k,l])=>`<button class="btn sm ${CONN.env===k?'':'ghost'}" data-act="env" data-k="${k}">${l}</button>`).join('')}</div>
+    <p class="small muted" style="margin:0">${CONN.env==='test'?'지금은 테스트 시트에 저장하고 있어요. 확인이 끝나면 실사용 시트로 바꾸고, 백업 파일을 한 번 더 가져오기 하세요.':'실사용 시트에 저장하고 있어요.'}</p>
+    <div class="row"><button class="btn sm ghost" data-act="syncnow">지금 동기화</button></div></div>`;
+  return`<div class="stack composer" style="gap:8px">
+    <p class="small muted" style="margin:0">지금은 이 기기에만 저장돼요. 저널 설정 → 구글 시트 저장소 → '연결 코드 복사'로 받은 코드를 붙여넣으세요.</p>
+    <div class="f"><label for="cc">연결 코드</label><textarea id="cc" rows="2" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="JNL1:… 붙여넣기" style="min-height:56px"></textarea></div>
+    <details class="small"><summary class="muted" style="cursor:pointer">웹 앱 주소·TOKEN 직접 넣기</summary><div class="stack" style="gap:6px;margin-top:6px"><input id="cu" placeholder="https://script.google.com/…/exec" autocapitalize="off" autocorrect="off" spellcheck="false"><input id="ct" type="password" placeholder="TOKEN" autocomplete="off"></div></details>
+    <div><button class="btn sm" data-act="connect">연결</button></div></div>`}
+let V={tab:'home',topic:'t2',book:null,q:null,vkind:'전체',ctype:'인용',stopArm:false,delArm:null,editNote:null,editBook:false,impArm:null,exportText:''};
+
+const book=id=>S.books.find(b=>b.id===id);
+const topic=id=>S.topics.find(t=>t.id===id);
+const note=id=>S.notes.find(n=>n.id===id);
+function topicPath(id){const t=topic(id);if(!t)return'';return t.parent?topicPath(t.parent)+' › '+t.name:t.name}
+function descend(id){return[id,...S.topics.filter(t=>t.parent===id).flatMap(t=>descend(t.id))]}
+function booksOf(tid){const ids=descend(tid);return S.books.filter(b=>b.topics.some(x=>ids.includes(x)))}
+function openQs(bookIds){return S.notes.filter(n=>n.type==='질문'&&bookIds.includes(n.bookId)&&n.status!=='답이 생김')}
+function qsForBook(b){const ids=b.topics.flatMap(t=>{const top=topic(t);return descend(top&&top.parent?top.parent:t)});
+  const bIds=S.books.filter(x=>x.topics.some(t=>ids.includes(t))).map(x=>x.id);return openQs(bIds)}
+function stats(){
+  const fin=S.books.filter(b=>b.status==='완독'&&b.end&&b.end.startsWith(YEAR));
+  return{done:fin.length,pages:fin.reduce((t,b)=>t+(b.pages||0),0),reading:S.books.filter(b=>b.status==='읽는 중').length,paused:S.books.filter(b=>b.status==='멈춤').length}}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,1800)}
+const item=id=>S.expr.find(x=>x.id===id)||S.vocab.find(x=>x.id===id);
+const vword=id=>S.vocab.find(x=>x.id===id);
+const groupsOf=id=>S.vgroups.filter(g=>g.ids.includes(id));
+function linkWords(a,b,type,diff){if(!a||!b||a===b)return;
+  const old=S.vgroups.find(g=>g.type===type&&(g.ids.includes(a)||g.ids.includes(b)));
+  const g=old?{...old,ids:[...new Set([...old.ids,a,b])],diff:diff||old.diff}:{id:uid(),type,ids:[a,b],diff:diff||''};
+  put('vgroups',g)}
+const DET={질문:'질문에 대한 자세한 생각',생각:'생각에 대한 자세한 내용',인용:'이 문장에 대한 생각'};
+let RECENT=[];try{RECENT=JSON.parse(localStorage.getItem('readlog-recent')||'[]')}catch(e){}
+function touchBook(id){RECENT=[id,...RECENT.filter(x=>x!==id)].slice(0,8);try{localStorage.setItem('readlog-recent',JSON.stringify(RECENT))}catch(e){}}
+const ST_ORDER={'읽는 중':0,'멈춤':1,'읽을 책':2,'완독':3};
+const bookSort=(a,b)=>(ST_ORDER[a.status]??9)-(ST_ORDER[b.status]??9)||String(b.end||b.start||'').localeCompare(String(a.end||a.start||''))||a.title.localeCompare(b.title);
+function bookMatch(b,q){q=nname(q);if(!q)return true;return[b.title,b.author,b.translator,b.publisher,...b.topics.map(topicPath)].some(x=>nname(x).includes(q))}
+function bookRow(b){return`<div class="it brow"><button class="booklink" data-act="gobook" data-id="${b.id}">${esc(b.title)}</button>
+  <span class="muted small">${esc(b.author||'')}${b.translator?' · 옮긴이 '+esc(b.translator):''}</span>${markChip(markOf('옮긴이',b.translator))}
+  <span style="flex:1"></span><span class="muted small">${b.topics.map(t=>esc(topic(t)?.name||'')).join(', ')}</span>
+  <span class="chip">${esc(b.status)}</span><span class="muted small tnum">${b.status==='완독'&&b.end?b.end.slice(2).replace(/-/g,'.'):b.status==='멈춤'?(b.stoppedAt||'?')+'쪽':''}</span></div>`}
+const MROLES=['옮긴이','지은이','출판사'];
+const nname=x=>String(x||'').replace(/\s+/g,'').toLowerCase();
+const markOf=(role,name)=>name?S.marks.find(m=>m.role===role&&nname(m.name)===nname(name)):null;
+const markChip=m=>m&&m.mark?`<span class="mk mk-${m.mark==='피함'?'bad':'good'}" title="${esc(m.note||'')}">${m.mark==='피함'?'피함':'믿고 봄'}</span>`:'';
+function creditLine(b){const parts=[['지은이',b.author],['옮긴이',b.translator],['출판사',b.publisher]].filter(x=>x[1]);
+  return parts.map(([r,n])=>`<span class="cred"><span class="muted">${r}</span> ${esc(n)}${markChip(markOf(r,n))}</span>`).join('')}
+function warnFor(role,name){const m=markOf(role,name);if(!m||m.mark!=='피함')return'';return`⚠ 피하기로 표시한 ${role}예요${m.note?' · '+esc(m.note):''}`}
+function credFields(pre,b){b=b||{};const mf=(r,n)=>{const m=markOf(r,n)||{};return`<div class="row mrow"><select id="${pre}-m-${r}" aria-label="${r} 평가"><option value="">평가 없음</option><option ${m.mark==='믿고 봄'?'selected':''}>믿고 봄</option><option ${m.mark==='피함'?'selected':''}>피함</option></select><input id="${pre}-mn-${r}" placeholder="이유 (선택)" value="${esc(m.note||'')}" style="flex:1 1 140px"></div>`};
+  return`<div class="row">${[['author','지은이',b.author],['translator','옮긴이',b.translator],['publisher','출판사',b.publisher]].map(([k,r,v])=>`<div class="f" style="flex:1 1 170px"><label for="${pre}-${k}">${r}</label><input id="${pre}-${k}" data-role="${r}" class="credin" value="${esc(v||'')}"><span class="warn small" data-warn="${pre}-${k}">${warnFor(r,v)}</span>${pre==='be'?mf(r,v):''}</div>`).join('')}</div>`}
+function saveMarks(pre,b,g){MROLES.forEach(r=>{const name=b[{지은이:'author',옮긴이:'translator',출판사:'publisher'}[r]];if(!name)return;
+  const mark=g(pre+'-m-'+r),note=g(pre+'-mn-'+r),old=markOf(r,name);
+  if(old){if(old.mark!==mark||old.note!==note)put('marks',{...old,mark,note,date:todayStr()})}else if(mark)put('marks',{id:uid(),role:r,name,mark,note,date:todayStr()})})}
+const VKINDS=['어휘','관용구','사자성어','속담','표현'];
+const VSRC=['책 속에 나옴','책과 어울려 연결','대화·추천받음'];
+function hparts(str){const out=[],re=/([㐀-鿿豈-﫿])\s*([^㐀-鿿豈-﫿,·]*)/g;let m;
+  while((m=re.exec(str||''))){let t=m[2].replace(/[()（）\s]+/g,' ').trim();if(t&&!/\s/.test(t)&&t.length>=2)t=t.slice(0,-1)+' '+t.slice(-1);out.push({c:m[1],m:t})}return out}
+const hword=v=>hparts(v.hanja).map(p=>p.c).join('');
+function hanjaIndex(){const idx={};S.vocab.forEach(v=>hparts(v.hanja).forEach(p=>{const e=idx[p.c]=idx[p.c]||{c:p.c,m:'',words:[]};if(!e.m&&p.m)e.m=p.m;if(!e.words.includes(v))e.words.push(v)}));return idx}
+function vFields(v,isNew){v=v||{};const sel=(id,arr,cur)=>`<select id="${id}">${arr.map(x=>`<option ${x===cur?'selected':''}>${x}</option>`).join('')}</select>`;
+  return`<div class="row">${sel('vf-kind',VKINDS,v.kind||'어휘')}<input id="vf-word" placeholder="단어 / 표현 (예: 촌각을 다투다)" required value="${esc(v.word||'')}" style="flex:1 1 180px"></div>
+   <div class="f"><label for="vf-mean">뜻 (선택)</label><input id="vf-mean" value="${esc(v.mean||'')}"></div>
+   <div class="row"><div class="f" style="flex:1 1 200px"><label for="vf-hanja">한자 풀이 (선택)</label><input id="vf-hanja" placeholder="寸 마디 촌, 刻 새길 각" value="${esc(v.hanja||'')}"></div>
+     <div class="f" style="flex:1 1 200px"><label for="vf-syn">비슷한 말 · 쉼표로 (선택)</label><input id="vf-syn" placeholder="촌시, 촌음, 분음, 분초" value="${esc((v.syn||[]).join(', '))}"></div></div>
+   <div class="f"><label for="vf-ex">예문 (선택)</label><input id="vf-ex" value="${esc(v.ex||'')}"></div>
+   <div class="row"><div class="f"><label for="vf-src">어디서</label>${sel('vf-src',VSRC,v.src||'책 속에 나옴')}</div>
+     <div class="f"><label for="vf-book">연결된 책</label><select id="vf-book"><option value="">없음</option>${S.books.map(b=>`<option value="${b.id}" ${b.id===v.bookId?'selected':''}>${esc(b.title)}</option>`).join('')}</select></div>
+     <div class="f" style="flex:1 1 160px"><label for="vf-parent">이 단어가 나온 표현 (선택)</label><select id="vf-parent"><option value="">없음</option>${S.vocab.filter(x=>x.id!==v.id&&!x.parent).map(x=>`<option value="${x.id}" ${x.id===v.parent?'selected':''}>${esc(x.word)}</option>`).join('')}</select></div></div>
+   ${isNew?`<details class="small"><summary class="muted" style="cursor:pointer">자세히 비교할 단어와 묶기</summary><div class="stack" style="margin-top:8px"><div class="row"><select id="vf-cmp" style="flex:1 1 160px"><option value="">비교할 단어</option>${S.vocab.map(x=>`<option value="${x.id}">${esc(x.word)}</option>`).join('')}</select>${sel('vf-vt',VTYPES,'비슷한 말')}</div><input id="vf-diff" placeholder="핵심 차이 (선택)"></div></details>`:''}`}
+function readVocab(g){return{kind:g('vf-kind'),word:g('vf-word'),mean:g('vf-mean'),hanja:g('vf-hanja'),syn:g('vf-syn').split(/[,，、]/).map(x=>x.trim()).filter(Boolean),ex:g('vf-ex'),src:g('vf-src'),bookId:g('vf-book')||null,parent:g('vf-parent')||null}}
+function vCard(v,child){
+  if(V.editVocab===v.id)return`<form class="panel stack composer" id="f-vedit" data-id="${v.id}">${vFields(v,false)}<div class="row"><button class="btn sm">저장</button><button type="button" class="btn sm ghost" data-act="veditno">취소</button><span style="flex:1"></span>${V.vdelArm===v.id?`<button type="button" class="btn sm" data-act="vdelok" data-id="${v.id}">정말 삭제</button>`:`<button type="button" class="btn sm ghost" data-act="vdel" data-id="${v.id}">삭제</button>`}</div></form>`;
+  const b=book(v.bookId),hp=hparts(v.hanja),kids=S.vocab.filter(x=>x.parent===v.id);
+  return`<div class="vcard${child?' child':''}">
+   <div class="row"><b class="vw">${esc(v.word)}</b>${hp.length?`<span class="vh">${esc(hword(v))}</span>`:''}<span class="chip">${esc(v.kind)}</span><span style="flex:1"></span>
+     <button class="t" data-act="vedit" data-id="${v.id}">수정</button>${child?'':`<button class="t" data-act="vchild" data-id="${v.id}">속 단어 추가</button>`}</div>
+   ${v.mean?`<div>${esc(v.mean)}</div>`:''}
+   ${hp.length?`<div class="row hrow">${hp.map(p=>`<button class="hchip" data-act="hanja" data-k="${esc(p.c)}"><span>${esc(p.c)}</span>${esc(p.m)}</button>`).join('')}</div>`:''}
+   ${v.syn&&v.syn.length?`<div class="small"><span class="muted">비슷한 말</span> ${v.syn.map(esc).join(', ')}</div>`:''}
+   ${v.ex?`<div class="small muted">${esc(v.ex)}</div>`:''}
+   ${groupsOf(v.id).map(g=>`<div class="small muted">${esc(g.type)}: ${g.ids.filter(x=>x!==v.id).map(x=>esc(vword(x)?.word)).join(', ')}</div>`).join('')}
+   <div class="small muted">${esc(v.src||'책 속에 나옴')}${b?' · '+esc(b.title):''}</div>
+   ${kids.length?`<div class="stack" style="gap:10px">${kids.map(k=>vCard(k,true)).join('')}</div>`:''}
+   ${V.vchildFor===v.id?`<form class="panel stack composer" id="f-vadd">${vFields({parent:v.id,bookId:v.bookId,src:v.src},true)}<div class="row"><button class="btn sm">추가</button><button type="button" class="btn sm ghost" data-act="vchildno">취소</button></div></form>`:''}
+  </div>`}
+const VTYPES=['비슷한 말','반대말','헷갈리는 말'];
+function cmpHTML(g){const ws=g.ids.map(vword).filter(Boolean);
+  return`<div class="cmp"><div class="row" style="justify-content:space-between"><span class="chip t-${g.type.replace(/ /g,'')}">${esc(g.type)}</span><span class="muted small">${ws.map(w=>esc(w.word)).join(g.type==='반대말'?' ↔ ':' · ')}</span></div>
+   <div class="cmp-grid" style="grid-template-columns:repeat(${ws.length},minmax(0,1fr))">${ws.map(w=>`<div class="col"><div class="w">${esc(w.word)}</div><div class="small">${esc(w.mean)}</div>${w.ex?`<div class="small muted ex">${esc(w.ex)}</div>`:''}</div>`).join('')}</div>
+   <div class="row diff"><label class="small muted" for="gd-${g.id}">핵심 차이</label><input id="gd-${g.id}" data-gdiff="${g.id}" value="${esc(g.diff)}" placeholder="한 줄로 차이를 적어 두면 비교가 쉬워요" style="flex:1 1 200px"></div></div>`}
+
+/* ---------- 렌더 ---------- */
+const TABS=[['home','서재'],['topic','주제'],['book','책 기록'],['expr','표현 수집함'],['vocab','어휘함']];
+function render(){
+  status();
+  document.getElementById('tabs').innerHTML=TABS.map(([k,l])=>`<button class="${V.tab===k?'on':''}" data-act="tab" data-k="${k}">${l}</button>`).join('');
+  const f={home:vHome,topic:vTopic,book:vBook,expr:vExpr,vocab:vVocab}[V.tab];
+  document.getElementById('app').innerHTML=f();
+  if(document.querySelectorAll)document.querySelectorAll('textarea.grow').forEach(grow);
+}
+function goalHTML(t,big){
+  const bs=booksOf(t.id),done=bs.filter(b=>b.status==='완독').sort((a,b)=>String(a.end||'').localeCompare(String(b.end||''))),
+    now=bs.filter(b=>b.status==='읽는 중'||b.status==='멈춤'),g=t.goal||0;
+  const edit=big&&V.goalEdit===t.id?`<form class="row" id="f-goal" data-id="${t.id}" style="gap:6px"><label class="small muted" for="goal-n">목표</label><input id="goal-n" type="number" min="1" max="200" value="${g||''}" style="width:80px" required><span class="small">권</span><button class="btn sm">저장</button>${g?`<button type="button" class="btn sm ghost" data-act="goalclear" data-id="${t.id}">목표 없애기</button>`:''}<button type="button" class="btn sm ghost" data-act="goalno">취소</button></form>`:'';
+  if(!g)return big?`<div class="goal panel">${edit||`<div class="row"><span class="muted small">완독 ${done.length}권${now.length?' · 읽는 중 '+now.length+'권':''}</span><span style="flex:1"></span><button class="btn sm" data-act="goaledit" data-id="${t.id}">목표 정하기</button></div>`}</div>`:`<span class="muted small">완독 ${done.length}권</span>`;
+  const pct=Math.min(100,Math.round(done.length/g*100)),left=Math.max(0,g-done.length),over=Math.max(0,done.length-g);
+  const n=Math.max(g,done.length+now.length);
+  const slots=n<=40?`<div class="slots ${big?'':'sm'}" style="grid-template-columns:repeat(${n},minmax(0,1fr))" role="img" aria-label="목표 ${g}권 중 ${done.length}권 완독">${Array.from({length:n},(_,i)=>{
+      if(i<done.length)return`<i class="s done${i>=g?' over':''}" title="${esc(done[i].title)}"></i>`;
+      if(i<done.length+now.length)return`<i class="s now" title="${esc(now[i-done.length].title)} (읽는 중)"></i>`;
+      return`<i class="s"></i>`}).join('')}</div>`:`<div class="bar"><i style="width:${pct}%"></i></div>`;
+  const msg=done.length>=g?`목표 달성${over?' · '+over+'권 더 읽음':''}`:`남은 ${left}권${now.length?' · 읽는 중 '+now.length+'권':''}`;
+  if(!big)return`<div class="stack" style="gap:4px">${slots}<span class="muted small">완독 ${done.length} / ${g}권 · ${msg}</span></div>`;
+  return`<div class="goal panel stack">
+    <div class="row" style="align-items:baseline"><b class="gnum">${done.length}<span> / ${g}권</span></b><span class="gpct ${done.length>=g?'ok':''}">${pct}%</span><span style="flex:1"></span>
+      ${edit?'':`<button class="btn sm ghost" data-act="goaledit" data-id="${t.id}">목표 바꾸기</button>`}</div>
+    ${slots}
+    <div class="row small"><span class="${done.length>=g?'gok':'muted'}">${msg}</span><span style="flex:1"></span><span class="legend"><i class="s done"></i>완독 <i class="s now"></i>읽는 중 <i class="s"></i>남은 칸</span></div>
+    ${edit}</div>`}
+function shelfHTML(){const k=V.shelf||'now',q=V.shelfQ||'';
+  let bs=S.books.filter(b=>q?true:k==='all'?true:k==='done'?b.status==='완독':b.status==='읽는 중'||b.status==='멈춤').filter(b=>bookMatch(b,q)).sort(bookSort);
+  if(!bs.length)return`<p class="muted small" style="margin:0">${q?'찾는 책이 없어요.':k==='now'?'지금 읽는 책이 없어요. 주제 탭에서 책을 추가해 보세요.':'아직 없어요.'}</p>`;
+  if(k==='done'&&!q){const ys={};bs.forEach(b=>{const y=(b.end||'날짜 없음').slice(0,4);(ys[y]=ys[y]||[]).push(b)});
+    return Object.keys(ys).sort().reverse().map(y=>`<details ${y===YEAR?'open':''} class="yr"><summary><b>${y}</b> <span class="muted small">${ys[y].length}권</span></summary>${ys[y].map(bookRow).join('')}</details>`).join('')}
+  return bs.map(bookRow).join('')}
+function vHome(){
+  const s=stats();
+  const now=S.books.filter(b=>b.status==='읽는 중'||b.status==='멈춤').map(b=>`<div class="it row" style="justify-content:space-between"><div><button class="booklink" data-act="gobook" data-id="${b.id}">${esc(b.title)}</button> <span class="muted small">${esc(b.author)}</span></div>
+    <div class="row small"><span class="chip">${esc(b.status)}</span>${b.status==='멈춤'?`<span class="muted">${b.stoppedAt||'?'}${b.pages?' / '+b.pages:''}쪽에서 멈춤 · ${b.stoppedOn||''}</span>`:''}</div></div>`).join('');
+  const topics=S.topics.map(t=>{const n=booksOf(t.id).filter(b=>b.status==='완독').length;
+    return`<div class="stack" style="gap:6px"><div class="row"><button class="booklink" data-act="gotopic" data-id="${t.id}">${esc(topicPath(t.id))}</button><span class="chip">${esc(t.status)}</span></div>${goalHTML(t,false)}</div>`}).join('');
+  const ents={};S.notes.forEach(n=>{const k=n.bookId+'|'+n.date;(ents[k]=ents[k]||{b:n.bookId,d:n.date,st:n.stage||'완독 정리',n:0}).n++});
+  const recent=Object.values(ents).sort((a,b)=>b.d.localeCompare(a.d)).slice(0,4).map(e=>`<div class="it row" style="justify-content:space-between"><div><button class="booklink" data-act="gobook" data-id="${e.b}">${esc(book(e.b).title)}</button> <span class="chip">${esc(e.st)}</span></div><span class="muted small">${e.d} · 블록 ${e.n}개</span></div>`).join('');
+  const oq=S.notes.filter(n=>n.type==='질문'&&n.status!=='답이 생김').length;
+  return`<div class="stats">
+    <div class="stat"><b>${s.done}</b><span>${YEAR}년 완독</span></div>
+    <div class="stat"><b>${s.pages.toLocaleString()}</b><span>${YEAR}년 완독한 쪽</span></div>
+    <div class="stat"><b>${s.reading}</b><span>읽는 중</span></div>
+    <div class="stat"><b>${s.paused}</b><span>멈춤</span></div>
+    <div class="stat"><b>${oq}</b><span>열린 질문</span></div></div>
+  <div class="grid2"><div class="stack">
+    <div class="row" style="justify-content:space-between"><h3 style="margin:0">책장 <span class="muted">${S.books.length}권</span></h3>
+      <div class="row" style="gap:4px">${[['now','읽는 중·멈춤'],['done','완독'],['all','전체']].map(([k,l])=>`<button class="btn sm ${(V.shelf||'now')===k?'':'ghost'}" data-act="shelf" data-k="${k}">${l}</button>`).join('')}</div></div>
+    <input id="shelf-q" placeholder="책장에서 찾기 · 제목, 지은이, 옮긴이, 주제" value="${esc(V.shelfQ||'')}" autocomplete="off">
+    <div class="panel list" id="shelf-list">${shelfHTML()}</div>
+    <h3 style="margin:0">최근 정리</h3><div class="panel list">${recent||'<p class="muted small">아직 정리한 기록이 없어요.</p>'}</div>
+  </div><aside class="stack"><h3 style="margin:0">주제</h3><div class="panel stack">${topics||'<p class="muted small">주제 탭에서 첫 주제를 만들어 보세요.</p>'}</div>
+    <h3 style="margin:0">옮긴이 · 지은이 · 출판사</h3><div class="panel stack">
+      <div class="f"><label for="mk-check">이름 확인 (서점에서 고를 때)</label><input id="mk-check" placeholder="옮긴이·지은이·출판사 이름"><span class="small" id="mk-res"></span></div>
+      ${['피함','믿고 봄'].map(k=>{const ms=S.marks.filter(m=>m.mark===k);return ms.length?`<div class="stack" style="gap:4px"><span class="small muted">${k}</span>${ms.map(m=>`<div class="small">${markChip(m)} <b>${esc(m.name)}</b> <span class="muted">${esc(m.role)}${m.note?' · '+esc(m.note):''}</span></div>`).join('')}</div>`:''}).join('')||'<p class="small muted" style="margin:0">책 정보 수정에서 옮긴이·출판사에 "피함" 또는 "믿고 봄"을 표시하면 여기에 모여요.</p>'}
+    </div>
+    <h3 style="margin:0">구글 시트 연결</h3><div class="panel">${connHTML()}</div>
+    <h3 style="margin:0">백업</h3><div class="panel stack">
+      <p class="small muted" style="margin:0">모든 기록을 파일 하나로 내보내요. 다른 시트로 옮기거나 기록을 되살릴 때 '가져오기'로 다시 넣습니다.</p>
+      <div class="row"><button class="btn sm" data-act="export">내보내기</button><label class="btn sm ghost" for="imp-file" style="cursor:pointer">가져오기</label><input type="file" id="imp-file" accept=".json,application/json" hidden></div>
+      ${V.impArm?`<div class="stack small"><span>${V.impArm.count}개 항목을 지금 기록에 합칩니다. 같은 항목은 파일 내용으로 바뀌어요.</span><div class="row"><button class="btn sm" data-act="impok">합치기</button><button class="btn sm ghost" data-act="impno">취소</button></div></div>`:''}
+      ${V.exportText?`<div class="stack"><span class="small muted">파일 저장이 안 되면 아래 내용을 복사해 메모장에 .json으로 저장하세요.</span><textarea id="exp-text" readonly style="min-height:90px;font-size:12px">${esc(V.exportText)}</textarea><div><button class="btn sm ghost" data-act="copyexp">복사</button></div></div>`:''}
+    </div></aside></div>`}
+
+function qPanel(qid){
+  const q=note(qid);if(!q)return'';const b=book(q.bookId);
+  const chain=S.links.filter(l=>l.to===qid).map(l=>({l,n:note(l.from)})).filter(x=>x.n).sort((a,b)=>a.n.date.localeCompare(b.n.date));
+  return`<div class="stack"><div class="row" style="justify-content:space-between"><h3 style="margin:0">질문의 흐름</h3><button class="btn sm ghost" data-act="closeq">닫기</button></div>
+   <div style="font-family:var(--serif);font-size:16px">${esc(q.text)}</div>
+   <div class="row small"><button class="pill st-${q.status.replace(/ /g,'')}" data-act="qstatus" data-id="${q.id}">${esc(q.status)}</button><span class="muted">${esc(b.title)} · ${q.date}</span></div>
+   <div class="chain">${chain.length?chain.map(({l,n})=>`<div class="c"><div class="small"><span class="chip">${esc(l.rel)}</span> <span class="muted">${esc(book(n.bookId).title)} · ${n.date}</span></div><div class="small" style="white-space:pre-wrap;font-weight:${n.detail?600:400}">${esc(n.text)}</div>${n.detail?`<div class="small muted" style="white-space:pre-wrap;margin-top:4px">${esc(n.detail)}</div>`:''}</div>`).join(''):'<p class="muted small">아직 연결된 생각이 없어요. 다른 책을 읽고 "생각"을 쓸 때 이 질문을 골라 연결해 보세요.</p>'}</div></div>`}
+
+function vTopic(){
+  const tree=t=>`<div><div class="row" style="padding:4px 0"><button class="booklink" data-act="seltopic" data-id="${t.id}" style="${V.topic===t.id?'color:var(--accent)':''}">${esc(t.name)}</button><span class="chip">${esc(t.status)}</span></div>
+    <div class="sub">${S.topics.filter(c=>c.parent===t.id).map(tree).join('')}</div></div>`;
+  const t=topic(V.topic)||S.topics[0];
+  if(!t)return`<div class="stack" style="max-width:560px"><h2>첫 주제를 만들어 보세요</h2><p class="muted">예: 시간 › 시간의 의미처럼 큰 주제 아래 작은 주제를 둘 수 있어요.</p>
+   <form class="panel stack" id="f-topic"><div class="row"><input id="nt-name" placeholder="주제 이름" required style="flex:1 1 160px"><input id="nt-goal" type="number" min="1" placeholder="목표 권수" style="width:100px"></div><div><button class="btn">만들기</button></div></form></div>`;
+  V.topic=t.id;const bs=booksOf(t.id);const qs=openQs(bs.map(b=>b.id));
+  return`<div class="grid2"><div class="stack">
+   <div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(topicPath(t.id))}</h2>
+     <select id="t-status" data-id="${t.id}">${['진행 중','쉬는 중','다시 시작'].map(s=>`<option ${s===t.status?'selected':''}>${s}</option>`).join('')}</select></div>
+   ${goalHTML(t,true)}
+   <div class="panel list">${bs.map(b=>`<div class="it row" style="justify-content:space-between"><div><button class="booklink" data-act="gobook" data-id="${b.id}">${esc(b.title)}</button> <span class="muted small">${esc(b.author)}${b.translator?' · 옮긴이 '+esc(b.translator):''}</span>${markChip(markOf('옮긴이',b.translator))}</div><span class="chip">${esc(b.status)}</span></div>`).join('')||'<p class="muted">아직 책이 없어요.</p>'}</div>
+   <form class="panel stack composer" id="f-book"><h3 style="margin:0">이 주제에 책 추가</h3>
+     <div class="row"><input id="nb-title" placeholder="제목" required style="flex:2 1 160px"><input id="nb-pages" type="number" min="1" placeholder="총 쪽수" style="width:100px"></div>
+     ${credFields('nb',{})}
+     <div><button class="btn">추가</button></div></form>
+   <form class="panel stack" id="f-topic"><h3 style="margin:0">새 주제</h3>
+     <div class="row"><input id="nt-name" placeholder="주제 이름" required style="flex:1 1 160px"><select id="nt-parent"><option value="">상위 주제 없음</option>${S.topics.map(x=>`<option value="${x.id}">${esc(topicPath(x.id))}</option>`).join('')}</select><input id="nt-goal" type="number" min="1" placeholder="목표 권수" style="width:100px"></div>
+     <div><button class="btn">만들기</button></div></form>
+  </div><aside class="stack">
+   <div class="panel tree"><h3>주제 목록</h3>${S.topics.filter(x=>!x.parent).map(tree).join('')}</div>
+   <div class="panel">${V.q?qPanel(V.q):`<h3>열린 질문 ${qs.length}</h3>${qs.map(q=>`<div class="q-item"><a class="qlink small" data-act="openq" data-id="${q.id}">${esc(q.text)}</a><div class="muted small">${esc(book(q.bookId).title)} · ${esc(q.status)}</div></div>`).join('')||'<p class="muted small">열린 질문이 없어요.</p>'}`}</div>
+  </aside></div>`}
+
+function editHTML(n){
+  return`<form class="blk editing stack composer" id="f-nedit" data-id="${n.id}">
+   <div class="row">${['인용','생각','질문','다짐'].map(t=>`<label class="row small" style="gap:3px"><input type="radio" name="ne-type" value="${t}" ${n.type===t?'checked':''}>${t}</label>`).join('')}</div>
+   <textarea id="ne-text" required style="min-height:${Math.min(240,60+n.text.length/2)}px">${esc(n.text)}</textarea>
+   <label class="small muted" for="ne-detail">자세한 내용 (질문·생각·인용에 표시)</label><textarea id="ne-detail" class="grow">${esc(n.detail||'')}</textarea>
+   <div class="row"><input id="ne-page" type="number" min="1" placeholder="쪽" value="${n.page||''}" style="width:80px"><input id="ne-date" type="date" value="${n.date}">
+     <select id="ne-stage">${['완독 정리','중간 정리'].map(x=>`<option ${x===(n.stage||'완독 정리')?'selected':''}>${x}</option>`).join('')}</select>
+     <span style="flex:1"></span><button type="button" class="btn sm ghost" data-act="mvup" data-id="${n.id}" aria-label="위로">↑</button><button type="button" class="btn sm ghost" data-act="mvdn" data-id="${n.id}" aria-label="아래로">↓</button></div>
+   <div class="row"><button class="btn sm">저장</button><button type="button" class="btn sm ghost" data-act="editno">취소</button></div></form>`}
+function moveNote(id,dir){const n=note(id);
+  const list=S.notes.filter(x=>x.bookId===n.bookId&&x.date===n.date).sort((a,b)=>(a.order||0)-(b.order||0));
+  const i=list.findIndex(x=>x.id===id),j=i+dir;if(j<0||j>=list.length)return;
+  [list[i],list[j]]=[list[j],list[i]];list.forEach((x,k)=>{if((x.order||0)!==k+1)put('notes',{...x,order:k+1})})}
+function grow(t){t.style.height='auto';t.style.height=Math.min(Math.max(t.scrollHeight+6,280),window.innerHeight*0.7)+'px'}
+document.addEventListener('input',e=>{const t=e.target;if(!t.classList)return;
+  if(t.classList.contains('grow'))grow(t);
+  if(t.classList.contains('credin')){const w=document.querySelector('[data-warn="'+t.id+'"]');if(w)w.innerHTML=warnFor(t.dataset.role,t.value.trim())}
+  if(t.id==='expr-q'){V.exprQ=t.value;const L=document.getElementById('expr-list');if(L)L.innerHTML=[...S.expr].reverse().filter(x=>nname(x.text+' '+(book(x.bookId)?.title||'')+' '+(x.why||'')).includes(nname(t.value))).map(eItem).join('')||'<p class="muted small">찾는 표현이 없어요.</p>'}
+  if(t.id==='shelf-q'){V.shelfQ=t.value;const L=document.getElementById('shelf-list');if(L)L.innerHTML=shelfHTML()}
+  if(t.id==='book-q'){const r=document.getElementById('book-q-res'),q=t.value.trim();const hits=q?S.books.filter(b=>bookMatch(b,q)).sort(bookSort).slice(0,8):[];
+    r.hidden=!q;r.innerHTML=hits.length?hits.map(b=>`<button class="bhit" data-act="gobook" data-id="${b.id}"><b>${esc(b.title)}</b> <span class="muted small">${esc(b.author||'')} · ${esc(b.status)}</span></button>`).join(''):'<div class="muted small" style="padding:8px">찾는 책이 없어요</div>'}
+  if(t.id==='mk-check'){const q=nname(t.value),r=document.getElementById('mk-res');const hits=q?S.marks.filter(m=>nname(m.name).includes(q)):[];
+    r.innerHTML=!q?'':hits.length?hits.map(m=>`${markChip(m)} <b>${esc(m.name)}</b> <span class="muted">${esc(m.role)}${m.note?' · '+esc(m.note):''}</span>`).join('<br>'):'<span class="muted">표시한 기록이 없어요</span>'}});
+const det=n=>n.detail?`<div class="b-detail">${esc(n.detail)}</div>`:'';
+function blockHTML(n){
+  if(V.editNote===n.id)return editHTML(n);
+  const del=V.delArm===n.id?`<span class="tools on"><button class="btn sm" data-act="delok" data-id="${n.id}">삭제</button><button class="btn sm ghost" data-act="delno">취소</button></span>`:`<span class="tools"><button class="t" data-act="editnote" data-id="${n.id}" aria-label="블록 수정">수정</button><button class="t" data-act="delnote" data-id="${n.id}" aria-label="블록 삭제">×</button></span>`;
+  const pg=n.page?`<span class="page"> · ${n.page}쪽</span>`:'';
+  if(n.type==='질문'){const c=S.links.filter(l=>l.to===n.id).length;
+    return`<div class="blk">${del}<div class="b-질문">${esc(n.text)}<div class="qmeta"><button class="pill st-${n.status.replace(/ /g,'')}" data-act="qstatus" data-id="${n.id}">${esc(n.status)}</button><a class="qlink" data-act="openq" data-id="${n.id}">연결된 생각 ${c}</a></div></div>${det(n)}</div>`}
+  if(n.type==='생각'){const ls=S.links.filter(l=>l.from===n.id).map(l=>{const q=note(l.to);return q?`<div class="linkline">↳ ${esc(l.rel)}: <a data-act="openq" data-id="${q.id}">${esc(q.text)}</a> <span>(${esc(book(q.bookId).title)})</span></div>`:''}).join('');
+    return`<div class="blk">${del}${n.detail?`<div class="b-head">${esc(n.text)}</div>`:`<div class="b-생각">${esc(n.text)}</div>`}${pg}${det(n)}${ls}</div>`}
+  if(n.type==='인용')return`<div class="blk">${del}<div class="b-인용">${esc(n.text)}${n.page?`<div class="qmeta page">${n.page}쪽</div>`:''}</div>${det(n)}</div>`;
+  return`<div class="blk b-다짐">${del}${esc(n.text)}</div>`}
+
+function vBook(){
+  const b=book(V.book)||book(RECENT[0])||[...S.books].sort(bookSort)[0];if(!b)return'<p class="muted">주제 탭에서 책을 먼저 추가해 주세요.</p>';V.book=b.id;
+  const ns=S.notes.filter(n=>n.bookId===b.id).sort((x,y)=>x.date.localeCompare(y.date)||x.order-y.order);
+  const dates=[...new Set(ns.map(n=>n.date))];
+  const vs=S.vocab.filter(v=>v.bookId===b.id);
+  const qs=qsForBook(b).filter(q=>q.bookId!==b.id||true);
+  const T=V.ctype;
+  const rkey=x=>x.status==='읽는 중'||x.status==='멈춤'?'9'+(x.start||''):x.status==='읽을 책'?'0':(x.end||x.start||'1');
+  const same=S.books.filter(x=>x.topics.some(t=>b.topics.includes(t))).sort((x,y)=>rkey(y).localeCompare(rkey(x))||x.title.localeCompare(y.title));
+  const idx=same.findIndex(x=>x.id===b.id),prev=same[idx-1],next=same[idx+1];
+  const rec=RECENT.map(book).filter(x=>x&&!same.includes(x)).slice(0,4);
+  const switcher=`<nav class="bswitch" aria-label="책 바꾸기">
+    <div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn sm ghost" data-act="gobook" data-id="${prev?prev.id:''}" ${prev?'':'disabled'} aria-label="더 최근에 읽은 책" title="더 최근에 읽은 책">←</button>
+      <div class="chips"><span class="tlabel">${b.topics.map(t=>esc(topic(t)?.name||'')).join(' · ')}</span>${same.map(x=>`<button class="bchip ${x.id===b.id?'on':''}" data-act="gobook" data-id="${x.id}">${esc(x.title)}</button>`).join('')}${rec.length?`<span class="sep"></span>${rec.map(x=>`<button class="bchip rec" data-act="gobook" data-id="${x.id}" title="최근 본 책">${esc(x.title)}</button>`).join('')}`:''}</div>
+      <button class="btn sm ghost" data-act="gobook" data-id="${next?next.id:''}" ${next?'':'disabled'} aria-label="이전에 읽은 책" title="이전에 읽은 책">→</button></div>
+    <div class="bsearch"><input id="book-q" placeholder="책 찾기 · 제목, 지은이, 옮긴이, 주제" autocomplete="off"><div id="book-q-res" class="bres" hidden></div></div></nav>`;
+  return`${switcher}<div class="grid2"><div class="stack" style="min-width:0">
+   <div class="row" style="justify-content:space-between"><div><h2 style="margin:0">${esc(b.title)}</h2><div class="small credits">${creditLine(b)}</div><div class="small">${b.topics.map(t=>`<span class="chip">${esc(topicPath(t))}</span>`).join(' ')}</div></div>
+     <div class="row"><button class="btn sm ghost" data-act="editbook">${V.editBook?'닫기':'책 정보 수정'}</button></div></div>
+   ${V.editBook?`<form class="panel stack composer" id="f-bedit"><div class="row">
+     <div class="f" style="flex:2 1 160px"><label for="be-title">제목</label><input id="be-title" value="${esc(b.title)}" required></div>
+     ${''}<div class="f"><label for="be-pages">총 쪽수</label><input id="be-pages" type="number" min="1" value="${b.pages||''}" style="width:100px"></div></div>
+     ${credFields('be',b)}
+     <div class="row"><div class="f"><label for="be-start">시작일</label><input id="be-start" type="date" value="${b.start||''}"></div>
+     <div class="f"><label for="be-end">완독일</label><input id="be-end" type="date" value="${b.end||''}"></div>
+     <div class="f" style="flex:1 1 180px"><label for="be-topic">주제</label><select id="be-topic">${S.topics.map(t=>`<option value="${t.id}" ${b.topics.includes(t.id)?'selected':''}>${esc(topicPath(t.id))}</option>`).join('')}</select></div></div>
+     <div><button class="btn sm">저장</button></div></form>`:''}
+   <form class="row panel" id="f-stat"><span class="chip">${esc(b.status)}</span>
+     <span class="small muted">${b.status==='완독'?'완독 '+(b.end||''):b.status==='멈춤'?`${b.stoppedAt||'?'}${b.pages?' / '+b.pages:''}쪽에서 멈춤 · ${b.stoppedOn||''}`:b.pages?'총 '+b.pages+'쪽':''}</span>
+     <span style="flex:1"></span>
+     ${b.status!=='완독'?`<button type="button" class="btn sm" data-act="finish">완독으로 표시</button>`:''}
+     ${b.status==='읽는 중'||b.status==='읽을 책'?(V.stopArm?`<input id="stop-pg" type="number" min="1" placeholder="멈춘 쪽" style="width:100px" required><button class="btn sm ghost">멈춤 확정</button>`:`<button type="button" class="btn sm ghost" data-act="pause">멈춤</button>`):''}
+     ${b.status==='완독'||b.status==='멈춤'?`<button type="button" class="btn sm ghost" data-act="resume">다시 읽는 중</button>`:''}</form>
+   ${dates.length?'':`<p class="muted small">정리는 다 읽었을 때, 또는 오래 멈출 때 남겨요.</p>`}${dates.map(d=>`<article class="entry"><div class="date">${d} · ${esc(ns.find(n=>n.date===d).stage||'완독 정리')}</div>${ns.filter(n=>n.date===d).map(blockHTML).join('')}</article>`).join('')}
+   ${vs.length?(()=>{const gs=S.vgroups.filter(g=>g.ids.some(id=>vs.some(v=>v.id===id)));const lone=vs.filter(v=>!v.parent||!vs.some(x=>x.id===v.parent));
+     return`<article class="entry"><div class="divider">• • • • •</div><div class="stack">${gs.map(cmpHTML).join('')}${lone.map(v=>vCard(v,false)).join('')}</div></article>`})():''}
+   <form class="panel stack composer" id="f-note"><h3 style="margin:0">블록 추가 · ${b.status==='완독'?'완독 정리':'중간 정리'}</h3>
+     <div class="row">${['인용','생각','질문','다짐','표현','어휘'].map(t=>`<button type="button" class="btn sm ${T===t?'':'ghost'}" data-act="ctype" data-k="${t}">${t}</button>`).join('')}</div>
+     ${T==='어휘'?vFields({bookId:b.id,src:'책 속에 나옴'},true)
+     :`<div class="f"><label for="c-text">${{인용:'책 속 문장',생각:'생각 (한두 줄 요점)',질문:'질문',다짐:'다음 독서 방향',표현:'갖고 싶은 문장'}[T]}</label><textarea id="c-text" required style="min-height:${['생각','질문'].includes(T)?48:70}px"></textarea></div>
+       ${DET[T]?`<div class="f"><label for="c-detail">${DET[T]} (선택)</label><textarea id="c-detail" class="grow"></textarea></div>`:''}`}
+     ${T==='표현'?`<div class="f"><label for="c-why">왜 좋은지 (선택)</label><input id="c-why"></div>`:''}
+     ${T==='생각'?`<div class="row"><select id="c-q" style="flex:2 1 200px"><option value="">연결할 질문 (선택)</option>${qs.map(q=>`<option value="${q.id}">[${esc(book(q.bookId).title)}] ${esc(q.text)}</option>`).join('')}</select>
+       <select id="c-rel">${['이어짐','답이 됨','반대됨','확장됨'].map(r=>`<option>${r}</option>`).join('')}</select></div>`:''}
+     <div class="row">${['인용','생각','표현'].includes(T)?`<input id="c-page" type="number" min="1" placeholder="쪽" style="width:80px">`:''}<input id="c-date" type="date" value="${todayStr()}">
+       ${T==='인용'?`<label class="row small" style="gap:4px"><input type="checkbox" id="c-toexpr"> 표현 수집함에도 담기</label>`:''}
+       <button class="btn">추가</button></div></form>
+  </div><aside class="stack">
+   <div class="panel">${V.q?qPanel(V.q):`<h3>이 주제의 열린 질문</h3>${qs.map(q=>`<div class="q-item"><a class="qlink small" data-act="openq" data-id="${q.id}">${esc(q.text)}</a><div class="muted small">${esc(book(q.bookId).title)} · 연결 ${S.links.filter(l=>l.to===q.id).length}</div></div>`).join('')||'<p class="muted small">열린 질문이 없어요.</p>'}`}</div>
+  </aside></div>`}
+
+function vExpr(){
+  const q=V.exprQ||'';const es=[...S.expr].reverse().filter(e=>!q||nname(e.text+' '+(book(e.bookId)?.title||'')+' '+(e.why||'')).includes(nname(q)));
+  return`<div class="stack"><div class="row" style="justify-content:space-between"><h2 style="margin:0">표현 수집함 <span class="muted small">${S.expr.length}개</span></h2><button class="btn sm" data-act="enew">새 표현</button></div>
+  ${V.enew?`<form class="panel stack composer" id="f-eadd">${eFields({})}<div class="row"><button class="btn sm">추가</button><button type="button" class="btn sm ghost" data-act="enewno">취소</button></div></form>`:''}
+  <input id="expr-q" placeholder="표현 찾기 · 문장, 책 제목" value="${esc(q)}" autocomplete="off">
+  <div class="panel list" id="expr-list">${es.map(eItem).join('')||'<p class="muted">책 기록에서 "표현" 블록을 추가하면 여기에 쌓여요.</p>'}</div></div>`}
+function eFields(e){return`<div class="f"><label for="ef-text">갖고 싶은 문장</label><textarea id="ef-text" required>${esc(e.text||'')}</textarea></div>
+  <div class="row"><div class="f" style="flex:2 1 200px"><label for="ef-why">왜 좋은지 (선택)</label><input id="ef-why" value="${esc(e.why||'')}"></div>
+   <div class="f"><label for="ef-book">책</label><select id="ef-book"><option value="">없음</option>${S.books.map(b=>`<option value="${b.id}" ${b.id===e.bookId?'selected':''}>${esc(b.title)}</option>`).join('')}</select></div>
+   <div class="f"><label for="ef-page">쪽</label><input id="ef-page" type="number" min="1" value="${e.page||''}" style="width:80px"></div></div>`}
+function eItem(e){const b=book(e.bookId);
+  if(V.editExpr===e.id)return`<form class="it stack composer" id="f-eedit" data-id="${e.id}">${eFields(e)}<div class="row"><button class="btn sm">저장</button><button type="button" class="btn sm ghost" data-act="eeditno">취소</button><span style="flex:1"></span>${V.edelArm===e.id?`<button type="button" class="btn sm" data-act="edelok" data-id="${e.id}">정말 삭제</button>`:`<button type="button" class="btn sm ghost" data-act="edel" data-id="${e.id}">삭제</button>`}</div></form>`;
+  return`<div class="it stack" style="gap:6px">
+    <div class="row" style="align-items:flex-start;flex-wrap:nowrap"><div style="font-family:var(--serif);font-size:17px;flex:1;min-width:0;white-space:pre-wrap">${esc(e.text)}</div><button class="t" data-act="eedit" data-id="${e.id}">수정</button></div>
+    <div class="muted small">— ${esc(b?b.title:'')}${e.page?', '+e.page+'쪽':''}${e.why?' · '+esc(e.why):''}</div>
+    <label class="small muted" for="mine-${e.id}">내 문장으로 써보기</label>
+    <textarea id="mine-${e.id}" data-mine="${e.id}" placeholder="같은 구조로 다른 내용을 써 보세요" style="min-height:44px">${esc(e.mine)}</textarea></div>`}
+function vVocab(){
+  const kinds=['전체',...VKINDS];
+  const ok=v=>V.vkind==='전체'||v.kind===V.vkind;
+  if(V.vview==='hanja'){const idx=Object.values(hanjaIndex()).sort((a,b)=>b.words.length-a.words.length||a.c.localeCompare(b.c));
+    const cur=V.hanja&&idx.find(x=>x.c===V.hanja);
+    return`<div class="stack"><div class="row" style="justify-content:space-between"><h2 style="margin:0">어휘함 · 한자</h2>${vTabs()}</div>
+     <p class="muted small" style="margin:0">한자 풀이를 적은 단어들이 글자별로 모여요. 같은 글자를 쓰는 단어가 늘어날수록 뜻을 짐작하기 쉬워져요.</p>
+     <div class="grid2"><div class="panel hgrid">${idx.map(x=>`<button class="hcell ${cur&&cur.c===x.c?'on':''}" data-act="hanja" data-k="${esc(x.c)}"><b>${esc(x.c)}</b><span>${esc(x.m)}</span><i>${x.words.length}</i></button>`).join('')||'<p class="muted small">아직 한자 풀이를 적은 단어가 없어요.</p>'}</div>
+     <aside class="panel stack">${cur?`<div class="row"><b class="vw" style="font-size:34px">${esc(cur.c)}</b><span>${esc(cur.m)}</span></div>${cur.words.map(w=>`<div><b>${esc(w.word)}</b> <span class="vh">${esc(hword(w))}</span>${w.mean?`<div class="small">${esc(w.mean)}</div>`:''}</div>`).join('')}<p class="small muted" style="margin:0">이 글자가 들어간 다른 단어를 만나면 한자 풀이와 함께 추가해 보세요.</p>`:'<p class="muted small">왼쪽에서 글자를 고르면 그 글자를 쓰는 단어가 보여요.</p>'}</aside></div></div>`}
+  const gs=S.vgroups.filter(g=>g.ids.some(id=>{const w=vword(id);return w&&ok(w)}));
+  const vs=S.vocab.filter(v=>ok(v)&&!(v.parent&&vword(v.parent)));
+  return`<div class="stack"><div class="row" style="justify-content:space-between"><h2 style="margin:0">어휘함 <span class="muted small">${S.vocab.length}개</span></h2>${vTabs()}</div>
+  <div class="row">${kinds.map(k=>`<button class="btn sm ${V.vkind===k?'':'ghost'}" data-act="vkind" data-k="${k}">${k}</button>`).join('')}<span style="flex:1"></span><button class="btn sm" data-act="vnew">새 단어·표현</button></div>
+  ${V.vnew?`<form class="panel stack composer" id="f-vadd">${vFields({src:'대화·추천받음'},true)}<div class="row"><button class="btn sm">추가</button><button type="button" class="btn sm ghost" data-act="vnewno">취소</button></div></form>`:''}
+  <div class="vcards">${vs.map(v=>vCard(v,false)).join('')||'<p class="muted">아직 없어요.</p>'}</div>
+  <h3 style="margin:8px 0 0">비교 묶음</h3>
+  <div class="stack">${gs.map(cmpHTML).join('')||'<p class="muted small">비슷한 말, 반대말, 헷갈리는 말을 묶으면 나란히 비교할 수 있어요.</p>'}</div>
+  <form class="panel row" id="f-grp"><select id="g-a" required><option value="">단어 A</option>${S.vocab.map(v=>`<option value="${v.id}">${esc(v.word)}</option>`).join('')}</select>
+    <select id="g-t">${VTYPES.map(t=>`<option>${t}</option>`).join('')}</select>
+    <select id="g-b" required><option value="">단어 B</option>${S.vocab.map(v=>`<option value="${v.id}">${esc(v.word)}</option>`).join('')}</select>
+    <button class="btn sm">묶기</button></form></div>`}
+const vTabs=()=>`<div class="row">${[['list','단어'],['hanja','한자']].map(([k,l])=>`<button class="btn sm ${(V.vview||'list')===k?'':'ghost'}" data-act="vview" data-k="${k}">${l}</button>`).join('')}</div>`;
+
+/* ---------- 이벤트 ---------- */
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-act]');if(!el)return;const a=el.dataset.act,id=el.dataset.id;
+  if(a==='tab'){V.tab=el.dataset.k;V.q=null;V.delArm=null}
+  else if(a==='gotopic'||a==='seltopic'){V.topic=id;V.tab='topic';V.q=null}
+  else if(a==='gobook'){if(!id)return;touchBook(id);V.editNote=null;V.book=id;V.tab='book';V.q=null;V.stopArm=false;V.editBook=false}
+  else if(a==='openq'){V.q=id}
+  else if(a==='closeq'){V.q=null}
+  else if(a==='ctype'){V.ctype=el.dataset.k}
+  else if(a==='vkind'){V.vkind=el.dataset.k}
+  else if(a==='editbook'){V.editBook=!V.editBook}
+  else if(a==='finish'){const b={...book(V.book),status:'완독',end:todayStr(),stoppedAt:null};V.stopArm=false;put('books',b);toast('완독을 기록했어요. 정리를 남겨 보세요')}
+  else if(a==='pause'){V.stopArm=true}
+  else if(a==='resume'){put('books',{...book(V.book),status:'읽는 중',stoppedAt:null})}
+  else if(a==='qstatus'){const q=note(id);const o=['열림','생각 중','답이 생김'];put('notes',{...q,status:o[(o.indexOf(q.status)+1)%3]})}
+  else if(a==='delnote'){V.delArm=id}
+  else if(a==='delno'){V.delArm=null}
+  else if(a==='enew'){V.enew=true}
+  else if(a==='enewno'){V.enew=false}
+  else if(a==='eedit'){V.editExpr=id;V.edelArm=null}
+  else if(a==='eeditno'){V.editExpr=null}
+  else if(a==='edel'){V.edelArm=id}
+  else if(a==='edelok'){V.editExpr=null;V.edelArm=null;del('expr',id);toast('삭제했어요')}
+  else if(a==='goaledit'){V.goalEdit=id}
+  else if(a==='goalno'){V.goalEdit=null}
+  else if(a==='goalclear'){put('topics',{...topic(id),goal:null});V.goalEdit=null;toast('목표를 없앴어요')}
+  else if(a==='shelf'){V.shelf=el.dataset.k;V.shelfQ=''}
+  else if(a==='vview'){V.vview=el.dataset.k}
+  else if(a==='hanja'){V.hanja=el.dataset.k;V.vview='hanja';V.tab='vocab'}
+  else if(a==='vnew'){V.vnew=true}
+  else if(a==='vnewno'){V.vnew=false}
+  else if(a==='vedit'){V.editVocab=id;V.vdelArm=null}
+  else if(a==='veditno'){V.editVocab=null}
+  else if(a==='vchild'){V.vchildFor=id}
+  else if(a==='vchildno'){V.vchildFor=null}
+  else if(a==='vdel'){V.vdelArm=id}
+  else if(a==='vdelok'){V.editVocab=null;V.vdelArm=null;S.vocab.filter(x=>x.parent===id).forEach(x=>put('vocab',{...x,parent:null}));
+    S.vgroups.filter(g=>g.ids.includes(id)).forEach(g=>{const ids=g.ids.filter(x=>x!==id);ids.length<2?del('vgroups',g.id):put('vgroups',{...g,ids})});del('vocab',id);toast('삭제했어요')}
+  else if(a==='editnote'){V.editNote=id;V.delArm=null}
+  else if(a==='editno'){V.editNote=null}
+  else if(a==='mvup'||a==='mvdn'){moveNote(id,a==='mvup'?-1:1)}
+  else if(a==='delok'){V.delArm=null;S.links.filter(l=>l.from===id||l.to===id).forEach(l=>del('links',l.id));del('notes',id);toast('삭제했어요')}
+  else if(a==='export'){doExport();return}
+  else if(a==='connect'){connect();return}
+  else if(a==='env'){setEnv(el.dataset.k);return}
+  else if(a==='syncnow'){(async()=>{if(dirtyS)await flush();await pull();toast(syncErr?'동기화하지 못했어요. 잠시 뒤 다시 해 주세요':'최신 상태예요');render()})();return}
+  else if(a==='copyexp'){const t=document.getElementById('exp-text');try{navigator.clipboard.writeText(V.exportText).then(()=>toast('복사했어요'),()=>{t.select();toast('선택했어요. 복사해 주세요')})}catch(err){t.select()}return}
+  else if(a==='impok'){const d=V.impArm.data;V.impArm=null;doImport(d);return}
+  else if(a==='impno'){V.impArm=null}
+  else return;
+  render()});
+
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.id==='b-pick'){V.book=t.value;V.q=null;V.stopArm=false;V.editBook=false;render()}
+  else if(t.dataset.gdiff){const g=S.vgroups.find(x=>x.id===t.dataset.gdiff);put('vgroups',{...g,diff:t.value});toast('저장했어요')}
+  else if(t.id==='t-status'){put('topics',{...topic(t.dataset.id),status:t.value});render()}
+  else if(t.dataset.mine){const x=S.expr.find(x=>x.id===t.dataset.mine);put('expr',{...x,mine:t.value});toast('저장했어요')}
+  else if(t.id==='imp-file'&&t.files[0]){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);
+      const count=COLS.reduce((n,c)=>n+(Array.isArray(d[c])?d[c].length:0),0);if(!count)throw new Error();V.impArm={data:d,count};render()}
+    catch(err){toast('이 앱에서 내보낸 백업 파일이 아니에요')}};r.readAsText(t.files[0])}
+});
+
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='book-q'){e.preventDefault();const f=document.querySelector('#book-q-res .bhit');if(f)f.click()}
+  if(e.key==='Escape'&&e.target.id==='book-q'){e.target.value='';document.getElementById('book-q-res').hidden=true}});
+document.addEventListener('submit',e=>{
+  e.preventDefault();const f=e.target.id,g=id=>{const x=document.getElementById(id);return x?x.value.trim():''};
+  if(f==='f-book'){const id=uid();put('books',{id,title:g('nb-title'),author:g('nb-author'),translator:g('nb-translator'),publisher:g('nb-publisher'),pages:+g('nb-pages')||null,topics:[V.topic],status:'읽는 중',start:todayStr(),end:null,stoppedAt:null});V.book=id;V.tab='book';toast('책을 추가했어요')}
+  else if(f==='f-topic'){const id=uid();put('topics',{id,name:g('nt-name'),parent:g('nt-parent')||null,status:'진행 중',goal:+g('nt-goal')||null});V.topic=id;toast('주제를 만들었어요')}
+  else if(f==='f-bedit'){const b=book(V.book);const nb={...b,title:g('be-title'),author:g('be-author'),translator:g('be-translator'),publisher:g('be-publisher'),pages:+g('be-pages')||null,start:g('be-start')||null,end:g('be-end')||null,topics:g('be-topic')?[g('be-topic')]:b.topics};put('books',nb);saveMarks('be',nb,g);V.editBook=false;toast('책 정보를 저장했어요')}
+  else if(f==='f-stat'){const p=+g('stop-pg');if(!p)return;put('books',{...book(V.book),status:'멈춤',stoppedAt:p,stoppedOn:todayStr()});V.stopArm=false;toast('멈춤을 기록했어요. 중간 정리를 남겨 보세요')}
+  else if(f==='f-nedit'){const n=note(e.target.dataset.id),type=(e.target.querySelector('[name=ne-type]:checked')||{}).value||n.type,text=g('ne-text');if(!text)return;
+    const nn={...n,type,text,detail:g('ne-detail'),page:+g('ne-page')||null,date:g('ne-date')||n.date,stage:g('ne-stage')};
+    if(type==='질문'&&!nn.status)nn.status='열림';
+    put('notes',nn);V.editNote=null;toast('수정했어요')}
+  else if(f==='f-vadd'){const v=readVocab(g);if(!v.word)return;const vid=uid();put('vocab',{id:vid,...v,box:1});if(g('vf-cmp'))linkWords(g('vf-cmp'),vid,g('vf-vt'),g('vf-diff'));V.vnew=false;V.vchildFor=null;toast('어휘함에 담았어요')}
+  else if(f==='f-vedit'){const old=vword(e.target.dataset.id),v=readVocab(g);if(!v.word)return;put('vocab',{...old,...v});V.editVocab=null;toast('수정했어요')}
+  else if(f==='f-eadd'||f==='f-eedit'){const text=g('ef-text');if(!text)return;const v={text,why:g('ef-why'),bookId:g('ef-book')||null,page:+g('ef-page')||null};
+    if(f==='f-eadd'){put('expr',{id:uid(),...v,tags:[],mine:'',box:1});V.enew=false;toast('표현 수집함에 담았어요')}
+    else{const old=S.expr.find(x=>x.id===e.target.dataset.id);put('expr',{...old,...v});V.editExpr=null;toast('수정했어요')}}
+  else if(f==='f-goal'){const n=+g('goal-n');if(!n)return;put('topics',{...topic(e.target.dataset.id),goal:n});V.goalEdit=null;toast('목표를 '+n+'권으로 정했어요')}
+  else if(f==='f-grp'){if(g('g-a')===g('g-b')){toast('서로 다른 두 단어를 골라 주세요');return}linkWords(g('g-a'),g('g-b'),g('g-t'),'');toast('묶었어요')}
+  else if(f==='f-note'){const b=book(V.book),T=V.ctype,text=g('c-text'),date=g('c-date')||todayStr(),page=+g('c-page')||null;if(!text&&T!=='어휘')return;
+    if(T==='어휘'){const vid=uid(),v=readVocab(g);if(!v.word)return;put('vocab',{id:vid,...v,box:1});if(g('vf-cmp'))linkWords(g('vf-cmp'),vid,g('vf-vt'),g('vf-diff'));toast('어휘함에 담았어요')}
+    else if(T==='표현'){put('expr',{id:uid(),bookId:b.id,page,text,why:g('c-why'),tags:[],mine:'',box:1});toast('표현 수집함에 담았어요')}
+    else{const id=uid(),order=S.notes.filter(n=>n.bookId===b.id).length+1;
+      put('notes',{id,bookId:b.id,date,type:T,text,detail:g('c-detail')||'',page,order,stage:b.status==='완독'?'완독 정리':'중간 정리',...(T==='질문'?{status:'열림'}:{})});
+      if(T==='생각'&&g('c-q'))put('links',{id:uid(),from:id,to:g('c-q'),rel:g('c-rel'),date});
+      if(T==='인용'&&document.getElementById('c-toexpr')?.checked)put('expr',{id:uid(),bookId:b.id,page,text,why:'',tags:[],mine:'',box:1});
+      toast('기록했어요')}}
+  else return;
+  render()});
+
+function doExport(){
+  const out={app:'주제 독서 노트',format:1,exportedAt:new Date().toISOString()};COLS.forEach(c=>out[c]=S[c]);
+  const text=JSON.stringify(out,null,2),name='독서노트-백업-'+todayStr()+'.json';
+  try{const u=URL.createObjectURL(new Blob([text],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);toast('백업 파일을 내려받았어요');V.exportText=''}
+  catch(e){V.exportText=text;render()}}
+async function doImport(d){
+  let n=0;toast('합치는 중…');
+  for(const c of COLS){if(!Array.isArray(d[c]))continue;
+    for(const obj of d[c]){if(!obj||typeof obj.id!=='string')continue;put(c,obj);n++}}
+  toast(n+'개 항목을 합쳤어요'+(MODE==='db'?'. 시트에 올리는 중…':''));render()}
+
+render();boot();
+</script>
+
+
+</body></html>
