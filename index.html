@@ -374,8 +374,6 @@ body.fill .dayw{flex:1}
 .wkstr.cur{border-color:var(--accent);background:var(--accent-soft)}.wkstr.done{opacity:.65}
 .pill.wkpill{background:var(--surface-2);color:var(--muted)}
 .badge-src.ok{background:var(--accent-soft);color:var(--accent)}
-.wpsim{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px;padding:8px;border:1px dashed var(--line);border-radius:10px}
-.wpsim .field{width:auto;padding:5px 8px}
 .ci.wp{background:color-mix(in srgb,var(--accent) 10%,var(--surface));border-left-style:dashed}
 .wpstrip{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px;padding:6px 8px;border:1px dashed var(--accent);border-radius:10px;background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
 .wpstrip .tlabel{font-size:.74rem;color:var(--accent);font-weight:700}
@@ -386,7 +384,6 @@ body.fill .dayw{flex:1}
 .wprow{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;align-items:start;font-size:.9rem}
 .wprow > span{color:var(--muted);font-size:.8rem;padding-top:6px}
 .wpitem{display:inline-flex;gap:4px;align-items:baseline;border:1px solid var(--line);border-radius:999px;padding:3px 10px;margin:0 4px 4px 0;font-size:.84rem}.wpitem small{color:var(--muted)}
-.wprev summary{cursor:pointer;display:flex;gap:8px;align-items:baseline}
 .wplist{display:grid;gap:4px;margin-top:8px}
 .wpli{display:grid;grid-template-columns:76px minmax(0,1fr) 70px auto;gap:8px;align-items:center;font-size:.86rem;padding:6px 8px;border:1px solid var(--line);border-radius:9px}
 .wpli.other{color:var(--muted);background:var(--bg)}
@@ -988,7 +985,7 @@ async function api(method, payload, timeoutMs = 45000){
   if (!CONN) throw new Error('연결 안 됨');
   const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), timeoutMs);
   try {
-    const body = { ...payload, token:CONN.token, env:CONN.env };
+    const { _env, ...rest } = payload, body = { ...rest, token:CONN.token, env:_env || CONN.env }; // _env: 운동 앱 데이터처럼 다른 환경을 읽고 쓸 때
     const res = method === 'GET'
       ? await fetch(CONN.url + '?' + new URLSearchParams({ ...body, _t:Date.now() }), { signal:ctl.signal, cache:'no-store' }) // 일부 브라우저(삼성인터넷 등)가 예전 응답을 재사용하지 않도록
       : await fetch(CONN.url, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body:JSON.stringify(body), signal:ctl.signal });
@@ -1063,7 +1060,8 @@ async function pullAll(quiet){
     Object.keys(S.days).forEach(k => { if (!/^\d{4}-\d{2}-\d{2}$/.test(k)){ delete S.days[k]; delete SAVED.days[k]; } });
     Object.keys(S.days).forEach(k => { if (!fd.has[k]) delete SAVED.days[k]; }); // 아직 새 형식('d:')으로 시트에 없는 날 → 올림
     if (!hasSettings) delete SAVED.meta.settings; // 시트에 설정이 없으면 이 기기 설정을 올림
-    try { wkLoad(j.cols); wkCache(); if (wkSync()) changed = true; } catch(e){ console.error('운동 앱 연동', e); }
+    try { const wc = wkEnv() === CONN.env ? j.cols : (await api('GET', { action:'listAll', _env:wkEnv() })).cols;
+      wkLoad(wc); wkCache(); if (wkSync()) changed = true; WK.err = null; } catch(e){ WK.err = String(e.message || e); console.error('운동 앱 연동', e); }
     syncErr = null; lastSync = new Date().toISOString(); writeCache();
     if (changed){ clearAutoCache(); render(); }
     return true;
@@ -1228,10 +1226,10 @@ function chipList(k, evs, day, interactive){
     const act = interactive ? ` type="button" data-act="edit" data-id="${it.id}"` : ` role="button" data-act="edit" data-id="${it.id}"`;
     return `<${tagName} class="ci ${k2.hollow?'hollow':''}" style="--c:${k2.color}"${act} title="${esc(it.title)}">${text}${amt}</${tagName}>`;
   });
-  if (day.workout && !blocksOn(k).some(b => b.planId && b.done)) out.push(`<span class="ci flag" role="button" data-act="open-day" data-date="${k}">운동 ✓</span>`);
+  const bl = blocksOn(k);
+  if (day.workout && !bl.some(b => b.planId && b.done)) out.push(`<span class="ci flag" role="button" data-act="open-day" data-date="${k}">운동 ✓</span>`);
   if (day.face) out.push(`<span class="ci flag" role="button" data-act="open-day" data-date="${k}">얼굴관리 ✓</span>`);
-  if (!interactive) wpOn(k).forEach(w => out.push(wpChip(w, true)));
-  if (!interactive) blocksOn(k).filter(b=>showOf(b)==='month').forEach(b =>
+  if (!interactive) bl.filter(b=>showOf(b)==='month').forEach(b =>
     out.push(b.routineId ? `<span class="ci wpr" role="button" data-act="wp-open" data-id="${b.id}" title="운동 앱 계획">${esc(dispTitle(b))}</span>`
       : `<span class="ci ${b.done?'plan done':''}" role="button" data-act="blk-open" data-id="${b.id}" style="--c:${(CAT[b.cat]||CAT.etc).c}"><em style="margin:0 3px 0 0">${hm(b.start)}</em>${esc(dispTitle(b))}</span>`));
   return out.join('');
@@ -1434,6 +1432,8 @@ const WK_AHEAD = 8;           // 기본 주간 계획을 저널 캘린더에 미
 /* 운동 앱 아이콘(아령, icons/workout.svg와 같은 그림) — 그림 파일을 따로 불러오지 않고 CSS에 한 번만 넣어 둠 */
 const WK_COLOR = '#D9412A'; // 운동 앱 아이콘 빨강(기본값). 바꾼 색은 S.wkColor(설정, 시트에 저장)
 const WKIC = '<i class="wkic" aria-hidden="true"></i>';
+/* 운동 앱은 기기마다 '테스트/실사용' 시트를 따로 고름(wk_env, 기본 테스트). 저널도 같은 값을 따라 운동 데이터를 읽고 씀 */
+const wkEnv = () => { try { return localStorage.getItem('wk_env') === 'prod' ? 'prod' : 'test'; } catch(e){ return 'test'; } };
 const wkMon = k => ymd(weekStart(k));
 const wkR = id => WK.routines.find(r => r.id === id);
 const wkE = id => WK.ex.find(e => e.id === id);
@@ -1457,9 +1457,14 @@ function wkLoad(cols){ // listAll 결과 → WK (이 기기에서 아직 안 올
 function wkWeek(mon){ if (WK.weeks[mon]) return WK.weeks[mon];
   return WK.tpl.filter(t => wkR(t.rid)).map(t => ({ id:'t' + t.id + mon.replace(/-/g,''), rid:t.rid, date:dk(mon, t.wd), type:t.type, tpl:t.id })); }
 function wkStamp(mon){ if (!WK.weeks[mon]) WK.weeks[mon] = wkWeek(mon).map(p => ({ ...p })); return WK.weeks[mon]; }
+let _wkByMon = null, _wkByMonOf = null;
+function wkLogsOfWeek(mon){ // 기록을 주별로 한 번만 묶어 둠(기록 목록이 바뀌면 다시)
+  if (_wkByMonOf !== WK.logs){ _wkByMon = {}; WK.logs.forEach(l => (_wkByMon[wkMon(l.date)] = _wkByMon[wkMon(l.date)] || []).push(l)); _wkByMonOf = WK.logs; }
+  return _wkByMon[mon] || [];
+}
 function wkStatus(mon){ // 계획 id → 실제로 한 날짜 (같은 날 같은 루틴 먼저, 남으면 그 주 다른 날)
-  const end = dk(mon, 6), items = wkWeek(mon), pool = [], out = {};
-  WK.logs.filter(l => l.date >= mon && l.date <= end).forEach(l => wkLogRts(l).forEach(r => pool.push({ rid:r.id, date:l.date, used:false })));
+  const items = wkWeek(mon), pool = [], out = {};
+  wkLogsOfWeek(mon).forEach(l => wkLogRts(l).forEach(r => pool.push({ rid:r.id, date:l.date, used:false })));
   items.forEach(p => { const m = pool.find(x => !x.used && x.rid === p.rid && x.date === p.date); if (m){ m.used = true; out[p.id] = m.date; } });
   items.forEach(p => { if (out[p.id]) return; const m = pool.find(x => !x.used && x.rid === p.rid); if (m){ m.used = true; out[p.id] = m.date; } });
   return out;
@@ -1510,7 +1515,7 @@ async function wkPushNow(){
   Object.entries(WK.weeks).forEach(([mon, items]) => { const id = 'plan:' + mon, str = JSON.stringify({ items }); if (str !== WK_SAVED[id]) recs.push({ id, str }); });
   if (!recs.length) return;
   if (!CONN){ recs.forEach(r => WK_SAVED[r.id] = r.str); return; }
-  try { await api('POST', { action:'upsert', col:'workouts', records:recs.map(r => ({ id:r.id, updatedAt:'t' + now, deleted:false, data:JSON.parse(r.str) })) });
+  try { await api('POST', { action:'upsert', col:'workouts', _env:wkEnv(), records:recs.map(r => ({ id:r.id, updatedAt:'t' + now, deleted:false, data:JSON.parse(r.str) })) });
     recs.forEach(r => WK_SAVED[r.id] = r.str); }
   catch(e){ setTimeout(wkPushNow, 20000); }
 }
@@ -1582,22 +1587,15 @@ function wkProjBar(pid, p){ // 단계형 + 운동 앱 연결
   return `<div class="stage ${c && c.ok ? 'reached' : ''}"><span class="tdots">${dots}</span><span><b>${i+1}단계</b> ${esc(m.title)}${c ? `<small class="crit">기준: ${esc(c.text)} · ${esc(c.prog)}</small>` : last ? '<small class="crit">마지막 단계</small>' : ''}</span>
     <span class="pill wkpill">${WKIC}운동 앱</span>${c && c.ok ? `<span class="pill p-ok">기준 달성 · 운동 앱에서 단계 올리기</span>` : ''}</div>`;
 }
-const wpOn = k => Object.entries(S.wplans||{}).filter(([,w]) => w.date === k).map(([id,w]) => ({ ...w, id })); // 예전 방식(시간 미정 계획) — 지금은 항상 비어 있음
 const wRoutine = id => wkR(id);
-const wkCacheKey = () => 'jnl_wk_' + (CONN ? CONN.env : 'local');
+const wkCacheKey = () => 'jnl_wk_' + (CONN ? wkEnv() : 'local');
 function wkCache(){ try { localStorage.setItem(wkCacheKey(), JSON.stringify({ WK, WK_SAVED })); } catch(e){} }
 function wkLoadCache(){ try { const j = JSON.parse(localStorage.getItem(wkCacheKey()) || 'null'); if (j && j.WK){ WK = j.WK; WK_SAVED = j.WK_SAVED || {}; } } catch(e){} }
 const DOWK = ['일','월','화','수','목','금','토'];
 const wReserve = rid => (S.wReserve||{})[rid] || 120;
 const wSlotStart = k => { const d = parse(k).getDay(); return (S.wSlots||{})[d] != null ? S.wSlots[d] : (S.wDefault || 1140); };
 function wpTime(k, rid){ const dur = wReserve(rid), st = Math.max(DS(), Math.min(DE() - dur, wSlotStart(k))); return { start:st, end:st + dur }; }
-function autoPlaceWp(id){ delete (S.wplans||{})[id]; }
 function wpMoveDate(id, k){ const b = S.blocks[id]; if (!b) return; const tm = wpTime(k, b.routineId); store.set('blocks', id, { ...b, date:k, start:tm.start, end:tm.end }); }
-function wpChip(w, month){
-  return month ? `<span class="ci wp" role="button" data-act="wp-open" data-id="${w.id}" style="--c:var(--accent)" title="운동 앱 루틴 · 시간 미정">${WKIC}${esc(w.title)}</span>`
-    : `<button type="button" class="tchip wpc ${S.placing==='w:'+w.id?'on':''}" data-act="place-pick" data-id="w:${w.id}" style="--c:var(--accent)"><b>${WKIC}${esc(w.title)}</b><small>${S.placing==='w:'+w.id ? '시간 칸을 누르세요' : '시간 미정 · 눌러서 배치'}</small></button><button type="button" class="tmore" data-act="wp-open" data-id="${w.id}" aria-label="계획 보기">⋯</button>`;
-}
-function wpStrip(k){ const l = wpOn(k); return l.length ? `<div class="wpstrip"><span class="tlabel">시간 미정</span>${l.map(w => `<span class="tchipwrap">${wpChip(w)}</span>`).join('')}</div>` : ''; }
 function wpSheet(){
   const id = S.wpOpen; if (!id) return '';
   const b = S.blocks[id]; if (!b) return '';
@@ -2154,7 +2152,6 @@ document.addEventListener('click', async e => {
     case 'new': openEditor(null, el.dataset.type, S.drawer || S.sel); break;
     case 'add-event': openEditor(null, 'event', k); break;
     case 'visit': openVisit(el.dataset.id); break;
-    case 'wprev-toggle': e.preventDefault(); S.wprevOpen = !S.wprevOpen; doRender(); break;
     case 'wp-open': S.wpOpen = el.dataset.id; doRender(); break;
     case 'wp-close': if (el.dataset.bg && e.target !== el) break; S.wpOpen = null; S.wpDelArm = false; doRender(); break;
     case 'wp-del': if (!S.wpDelArm){ S.wpDelArm = true; doRender(); break; } S.wpDelArm = false; if (S.blocks[el.dataset.id]) store.del('blocks', el.dataset.id); S.wpOpen = null; doRender(); toast('계획을 지웠어요. 운동 앱 계획에서도 빠져요.'); break;
@@ -2163,7 +2160,7 @@ document.addEventListener('click', async e => {
     case 'wset-open': S.wsetOpen = true; doRender(); break;
     case 'wset-close': if (el.dataset.bg && e.target !== el) break; S.wsetOpen = false; doRender(); break;
     case 'wset-apply': { const ws = ymd(weekStart(todayStr())); let n = 0; Object.entries(S.blocks).forEach(([id, b]) => { if (b.routineId && b.date >= ws && !b.done){ wpMoveDate(id, b.date); n++; } }); doRender(); toast(`운동 계획 ${n}개를 운동 자리 시간으로 다시 배치했어요.`); break; }
-    case 'month-cell': if (S.placing && S.placing.startsWith('w:')){ const id = S.placing.slice(2), w = S.wplans[id]; if (w){ w.date = k; autoPlaceWp(id); } else if (S.blocks[id]) wpMoveDate(id, k); toast(`${fmtDay(k)}로 옮겨 운동 자리에 넣었어요.`); S.placing = null; doRender(); break; }
+    case 'month-cell': if (S.placing && S.placing.startsWith('w:')){ const id = S.placing.slice(2); if (S.blocks[id]) wpMoveDate(id, k); toast(`${fmtDay(k)}로 옮겨 운동 자리에 넣었어요.`); S.placing = null; doRender(); break; }
       if (S.placing){ placeAt(k, 540); break; } openEditor(null, 'event', k); break;
     case 'open-day': if (S.placing && !e.target.closest('.tth')){ placeAt(k, 540); break; } openDay(k); break;
     case 'view': if (isWide()) S.vw = el.dataset.v; else S.vn = el.dataset.v; if (el.dataset.v==='month') S.cursor = monthOf(S.sel); savePref(); doRender(); break;
@@ -2308,11 +2305,7 @@ document.addEventListener('submit', e => {
     S.routines = [...(S.routines||[]), { id:'rt'+Date.now().toString(36), name }]; S.rtEdit = true; doRender();
     const ni = $('#rtInput'); if (ni) ni.focus({ preventScroll:true }); return;
   }
-  if (e.target.closest('[data-form="wpsim"]')){
-    e.preventDefault(); const rid = $('#wsimR').value, d = $('#wsimD').value, r = wRoutine(rid); if (!d || !r) return;
-    const id = 'wp' + Date.now().toString(36); S.wplans[id] = { date:d, routineId:rid, title:r.name }; autoPlaceWp(id); doRender();
-    const b = S.blocks[id]; toast(`${r.name} → ${fmtDay(d)} ${hm(b.start)}–${hm(b.end)} 자동 배치`); return;
-  }
+
   if (e.target.closest('[data-form="todo"]')){
     e.preventDefault(); const inp = $('#todoInput'), text = (inp.value||'').trim(); if (!text) return;
     S.todos = [...(S.todos||[]), { id:'td' + Date.now().toString(36), text, done:false, doneOn:null }]; inp.value = ''; doRender();
@@ -2338,8 +2331,8 @@ function shrinkImage(file){ return new Promise(res => {
   img.src = url; }); }
 document.addEventListener('change', e => {
   if ((e.target.id === 'rl_wk' || e.target.id === 'rl_base') && sheetState && sheetState.kind === 'pj'){ readProject(); drawProject(); return; }
-  if (e.target.id === 'wpDate'){ const id = e.target.dataset.id, v = e.target.value; if (!v) return; const w = (S.wplans||{})[id];
-    if (w){ w.date = v; autoPlaceWp(id); } else if (S.blocks[id]) wpMoveDate(id, v); doRender(); const b = S.blocks[id]; toast(b ? `${fmtDay(v)} ${hm(b.start)}–${hm(b.end)}로 옮겼어요. 운동 앱에도 반영돼요.` : '옮겼어요.'); return; }
+  if (e.target.id === 'wpDate'){ const id = e.target.dataset.id, v = e.target.value; if (!v) return;
+    if (S.blocks[id]) wpMoveDate(id, v); doRender(); const b = S.blocks[id]; toast(b ? `${fmtDay(v)} ${hm(b.start)}–${hm(b.end)}로 옮겼어요. 운동 앱에도 반영돼요.` : '옮겼어요.'); return; }
   if (e.target.dataset && e.target.dataset.wsday != null){ const d = +e.target.dataset.wsday; S.wSlots = { ...(S.wSlots||{}) }; if (e.target.checked) S.wSlots[d] = S.wDefault || 1140; else delete S.wSlots[d]; doRender(); return; }
   if (e.target.dataset && e.target.dataset.wstime != null){ S.wSlots[+e.target.dataset.wstime] = +e.target.value; return; }
   if (e.target.id === 'wsDefault'){ S.wDefault = +e.target.value; return; }
@@ -3022,7 +3015,11 @@ function pj2Click(a, el){
 }
 function viewSettings(){
   const cutOpts = [0,60,120,180,240,300,360,420,480].map(m => `<option value="${m}" ${dayCut()===m?'selected':''}>${m ? `새벽 ${m/60}시` : '자정 (밤 12시)'}</option>`).join('');
-  return `<section class="panel" style="margin-bottom:16px"><h2>하루 시작 기준</h2>
+  const wkSec = `<section class="panel" style="margin-bottom:16px"><h2>운동 앱 연동</h2>
+    <label class="f">운동 앱 데이터 <select class="field" id="wkEnvSel"><option value="test" ${wkEnv()==='test'?'selected':''}>테스트 시트</option><option value="prod" ${wkEnv()==='prod'?'selected':''}>실사용 시트</option></select></label>
+    <div class="hint" style="margin-top:6px">운동 앱 설정에서 고른 시트와 같게 맞춰 주세요. 휴대폰 브라우저에서는 두 앱이 이 값을 함께 써요.
+      ${!CONN ? '' : WK.err ? ` · <b style="color:var(--bad)">불러오기 실패</b>` : WK.loaded ? ` · 지금: 루틴 ${WK.routines.length}개, 기록 ${WK.logs.length}개` : ' · 아직 불러오지 않음'}</div></section>`;
+  return wkSec + `<section class="panel" style="margin-bottom:16px"><h2>하루 시작 기준</h2>
     <label class="f">다음 날로 넘어가는 시각 <select class="field" id="dayCutSel">${cutOpts}</select></label>
     <div class="hint" style="margin-top:6px">이 시각 전에는 전날로 기록돼요. 예: 새벽 5시로 두면 20일 새벽 2시에 쓴 내용은 19일 일간계획에 들어가요. 운동 앱도 같은 기준을 써요.</div></section>
     <section class="panel" style="margin-bottom:16px"><h2>입력 도구</h2>
@@ -3453,19 +3450,17 @@ function monthMoney(){
 }
 function placingTitle(){ const P = S.placing; if (!P) return '';
   if (P.startsWith('m:')) return (S.mtasks[P.slice(2)]||{}).title || '';
-  if (P.startsWith('w:')) return ((S.wplans||{})[P.slice(2)] || S.blocks[P.slice(2)] || {}).title || '';
+  if (P.startsWith('w:')) return (S.blocks[P.slice(2)] || {}).title || '';
   if (P.startsWith('t:')) return ((S.todos||[]).find(x => x.id === P.slice(2)) || {}).text || '';
   return (S.blocks[P]||{}).title || ''; }
 function placingBar(){ return S.placing ? `<div class="placing" style="margin-bottom:6px">‘${esc(placingTitle())}’을 넣을 칸을 누르세요. <button class="btn sm" data-act="place-cancel">그만두기</button></div>` : ''; }
 function trayHtml(){
   const list = parkedList(), wEnd = ymd(addDays(weekStart(S.sel),6)).slice(0,7), monthEnd = (S.vw==='month' && isWide()) || (!isWide() && S.vn==='month') ? ym(S.cursor) : wEnd;
   const mts = Object.entries(S.mtasks).filter(([,t]) => mtLive(t) && t.month <= monthEnd);
-  const ws0 = weekStart(S.sel), wkDays = Array.from({length:7}, (_,i) => ymd(addDays(ws0,i)));
   const showU = (isWide() ? S.vw : S.vn) === 'week';
   const uts = showU ? (S.todos||[]).filter(t => !t.done) : [];
   const fin = (isWide() ? S.vw : S.vn) === 'month' ? monthMoney() : '';
-  const wps = showU ? wkDays.flatMap(k => wpOn(k)) : [];
-  if (!list.length && !mts.length && !uts.length && !wps.length && !fin && !S.placing) return '';
+  if (!list.length && !mts.length && !uts.length && !fin && !S.placing) return '';
   const uGrp = uts.length ? `<div class="tgrp"><span class="tlabel">To-do ${uts.length}</span>${uts.map(t => `<button type="button" class="tchip ${S.placing===`t:${t.id}`?'on':''}" data-act="place-pick" data-id="t:${t.id}" style="--c:var(--muted)"><b>${esc(t.text)}</b><small>시간 미정</small></button>`).join('')}</div>` : '';
   const mtc = ([id,t]) => `<span class="tchipwrap"><button type="button" class="tchip ${S.placing==='m:'+id?'on':''}" data-act="place-pick" data-id="m:${id}" style="--c:${(CAT[t.cat]||CAT.etc).c}">
       <b>${esc(t.title)}</b><small>${durLabel(t.dur)}${t.carried ? ` · 이월 ${t.carried}` : ''}</small></button><button type="button" class="tmore" data-act="mt-open" data-id="${id}" aria-label="편집">⋯</button></span>`;
@@ -3474,17 +3469,12 @@ function trayHtml(){
       <b>${esc(b.title)}</b><small>${Math.round((b.end-b.start)/6)/10}시간${b.fromDate ? ' · ' + fmtDay(b.fromDate).replace(/ \(.\)/,'') + '에서' : ''}</small></button>`;
   const grp = st => { const l = list.filter(b=>b.status===st); return l.length ? `<div class="tgrp"><span class="tlabel">${ST_LABEL[st]} ${l.length}</span>${l.map(chip).join('')}</div>` : ''; };
   const placing = S.placing && { title: placingTitle() };
-  const wGrp = wps.length ? `<div class="tgrp"><span class="tlabel">운동 · 시간 미정 ${wps.length}</span>${wps.map(w => `<span class="tchipwrap">${wpChip(w).replace('시간 미정 · 눌러서 배치', `${+w.date.slice(5,7)}/${+w.date.slice(8)} · 시간 미정`)}</span>`).join('')}</div>` : '';
-  return `<div class="tray">${fin}${wGrp}${uGrp}${mtGrp}${grp('postponed')}${grp('onhold')}<span class="hint">항목을 누른 뒤 위에서 넣을 칸(주간) 또는 날짜(월간)를 누르세요.</span>
+  return `<div class="tray">${fin}${uGrp}${mtGrp}${grp('postponed')}${grp('onhold')}<span class="hint">항목을 누른 뒤 위에서 넣을 칸(주간) 또는 날짜(월간)를 누르세요.</span>
     ${placing ? `<div class="placing">‘${esc(placing.title)}’을 넣을 칸이나 날짜를 누르세요. <button class="btn sm" data-act="place-cancel">그만두기</button></div>` : ''}</div>`;
 }
 function placeAt(dateK, min){
   if (S.placing && S.placing.startsWith('w:') && S.blocks[S.placing.slice(2)]){ const id = S.placing.slice(2), b = S.blocks[id], dur = b.end - b.start, s = Math.max(DS(), Math.min(DE() - dur, Math.floor(min/30)*30));
     store.set('blocks', id, { ...b, date:dateK, start:s, end:s + dur, status:null }); S.placing = null; doRender(); toast(`${b.title}을 ${fmtDay(dateK)} ${hm(s)}로 옮겼어요. 운동 앱 계획도 옮겨졌어요.`); return; }
-  if (S.placing && S.placing.startsWith('w:')){ const id = S.placing.slice(2), w = (S.wplans||{})[id]; if (!w) return;
-    const r = wRoutine(w.routineId), dur = (r && r.min) || 60, s = Math.max(DS(), Math.min(DE() - dur, Math.floor(min/30)*30));
-    store.set('blocks', id, { date:dateK, start:s, end:s+dur, title:w.title, cat:'exercise', show:'month', bg:false, subs:[], memo:'', done:false, items:r ? r.items.map(x => x.name) : [], routineId:w.routineId, src:'workout' });
-    delete S.wplans[id]; S.placing = null; doRender(); toast(`${w.title}을 ${fmtDay(dateK)} ${hm(s)}에 넣었어요. 운동 앱 캘린더에도 반영돼요.`); return; }
   if (S.placing && S.placing.startsWith('t:')){ const t = (S.todos||[]).find(x => x.id === S.placing.slice(2)); if (!t) return;
     const s = Math.max(DS(), Math.min(DE() - 60, Math.floor(min/30)*30));
     store.set('blocks', newId(), { date:dateK, start:s, end:s+60, title:t.text, cat:'etc', show:'day', bg:false, subs:[], memo:'', done:false });
@@ -3762,7 +3752,7 @@ function defaults(){
   S.dayStart = 360; S.dayEnd = 1380; S.dayCut = 300;
 }
 function resetData(){
-  OBJ_COLS.forEach(c => S[c] = {}); S.todos = []; S.exPeriods = []; S.ePhotos = {}; S.wplans = {}; defaults();
+  OBJ_COLS.forEach(c => S[c] = {}); S.todos = []; S.exPeriods = []; S.ePhotos = {}; defaults();
 }
 /* 화면 전용 상태 (기기마다 다름, 저장 안 함) */
 S.rtEdit = false; S.condEdit = false; S.condLegend = false; S.diaryOpen = null; S.exOpen = false;
@@ -3780,6 +3770,10 @@ window.addEventListener('online', () => { schedulePush(0); pullAll(true); });
 setInterval(() => { if (document.visibilityState === 'visible' && !isTyping()) pullAll(true); }, 120000);
 /* 화면을 다시 그리거나 입력이 바뀌면 저장 예약 */
 document.addEventListener('change', () => schedulePush(), true);
+document.addEventListener('change', e => { if (e.target.id !== 'wkEnvSel') return;
+  try { localStorage.setItem('wk_env', e.target.value); } catch(_){}
+  WK = { loaded:false, routines:[], ex:[], tpl:[], weeks:{}, logs:[] }; WK_SAVED = {}; wkLoadCache(); doRender();
+  toast(`운동 앱 ${e.target.value === 'prod' ? '실사용' : '테스트'} 시트를 불러올게요.`); pullAll().then(() => doRender()); });
 document.addEventListener('change', e => { if (e.target.id !== 'dayCutSel') return; S.dayCut = +e.target.value; syncDayCut(); S.sel = todayStr(); doRender(); toast(`이제 ${e.target.value === '0' ? '자정' : '새벽 ' + (+e.target.value/60) + '시'}에 다음 날로 넘어가요.`); });
 document.addEventListener('input', () => schedulePush(2000), true);
 document.addEventListener('click', () => schedulePush(), true);
