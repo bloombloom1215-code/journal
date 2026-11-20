@@ -22,6 +22,11 @@
 .since.old{color:#B4462C;background:#FBE7E1}.since.new{color:#1F5F8B;background:#E4EEF8}
 .appv{margin:28px 0 4px;text-align:center;color:var(--muted);font-size:12px;opacity:.8}
 .critall{align-self:flex-start}
+.cplist{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.cprow{display:grid;grid-template-columns:26px minmax(0,1fr);gap:2px 10px;align-items:center;text-align:left;padding:10px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);color:inherit;font:inherit}
+.cprow .cpbox{grid-row:1/3;width:24px;height:24px;border-radius:7px;border:2px solid var(--line);display:grid;place-items:center;font-weight:800;font-size:14px}
+.cprow.on{border-color:var(--accent)}.cprow.on .cpbox{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.cprow .cpnow{color:var(--muted);font-size:13px}.cprow:disabled{opacity:.5}
 .crit{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding:10px;border-radius:12px;background:var(--sunk)}
 .lvjump{display:flex;align-items:center;gap:10px;justify-content:center;margin:10px 0;font-weight:700}.lvjump span{padding:8px 12px;border-radius:10px;background:var(--sunk)}.lvjump .to{background:var(--accent);color:#fff}
 .cum{display:inline-block;margin-top:3px;font-size:12px;font-weight:700;color:#1E6B4A;background:#DDEFE5;border-radius:6px;padding:1px 7px;white-space:nowrap}
@@ -447,6 +452,9 @@ const beginEdit=(root,id)=>{if(!UI.edit)UI.edit={root,id:id||null,orig:JSON.stri
 function applyCfg(x){D.cats=x.cats||[];D.ex=x.ex||[];D.areas=x.areas||[];D.rcats=x.rcats||[];D.routines=x.routines||[];D.body=x.body||{kg:''}}
 const editDirty=()=>!!UI.edit&&JSON.stringify(cfgOf())!==UI.edit.orig;
 const APPV='11.20-13';
+// 단계 기준을 사람이 읽는 글로: '3세트 × 횟수 15회 이상' / '이 단계로 10번 (하루 1번)'
+const critText=c=>!c||!c.type||c.type==='none'?'기준 없음':c.type==='goal'?`${c.sets===''||c.sets==null?3:c.sets}세트 × ${FIELDS[c.f]?FIELDS[c.f][0]:c.f} ${c.v||'?'}${FIELDS[c.f]?FIELDS[c.f][1]:''} 이상`:`이 단계로 ${c.n||'?'}번 (${c.per==='each'?'할 때마다':'하루 1번'})`;
+const critFits=(l,c)=>!c||c.type!=='goal'||l.fields.includes(c.f);   // 목표 달성 기준은 그 항목을 기록하는 단계에만
 function endEdit(keep){if(!UI.edit)return;const E=UI.edit;UI.edit=null;if(!keep)applyCfg(JSON.parse(E.orig));else fillNames();save()}
 // 이름 칸을 비워 둔 채 저장하면 기본 이름으로 채움(입력칸은 비워 두고 회색 예시만 보여 줌)
 function fillNames(){D.routines.forEach(r=>{if(!String(r.name||'').trim())r.name='새 루틴'});D.ex.forEach(e=>{if(!String(e.name||'').trim())e.name='새 종목';e.levels.forEach((l,k)=>{if(!String(l.name||'').trim())l.name=e.levels.length>1?`${k+1}단계`:'기본'})})}
@@ -1249,7 +1257,7 @@ function viewExEditor(){
           ${t==='count'?`<div class="row" style="flex-wrap:wrap;gap:6px"><span>이 단계로</span><input class="n" style="width:64px" inputmode="numeric" value="${c.n??''}" data-in="crit:${k}:n" aria-label="횟수"><span>번</span>
             <div class="seg" style="grid-template-columns:1fr 1fr;flex:1;min-width:180px"><button class="${c.per!=='each'?'on':''}" data-a="critPer" data-k="${k}" data-v="day">하루 1번만 셈</button><button class="${c.per==='each'?'on':''}" data-a="critPer" data-k="${k}" data-v="each">할 때마다 셈</button></div></div>`:''}
           ${r?`<span class="sub">지금: ${esc(r.prog)}${r.ok?' · <b style="color:var(--ok)">기준 통과</b>':''}</span>`:''}
-          ${t!=='none'&&ex.levels.length>2?`<button class="btn small ${UI.critArm===k?'primary':'soft'} critall" data-a="critAll" data-k="${k}">${UI.critArm===k?`한 번 더 누르면 다른 ${ex.levels.length-2}개 단계에도 적용`:'이 기준을 다른 단계에도 똑같이 적용'}</button>`:''}</div>`})():''}
+          ${t!=='none'&&ex.levels.length>2?`<button class="btn small soft critall" data-a="critPick" data-k="${k}">이 기준을 다른 단계에도 적용…</button>`:''}</div>`})():''}
       </div></div>`}).join('')}</div>
   <button class="btn soft" data-a="lvAdd">+ ${multi?'다음 단계 추가':'단계 만들기 (발전 과정 기록)'}</button></div>
   <button class="btn ghost danger" data-a="delEx">이 종목 삭제</button>`;
@@ -1390,6 +1398,14 @@ function sheetView(fresh){
   }else if(s.kind==='gxadd'){const G=D.gx||[],list=D.ex.filter(e=>!G.includes(e.id));
     h=`<h2>성장을 볼 종목</h2>${list.length?list.map(e=>{const n=D.logs.filter(l=>l.items.some(x=>x.exId===e.id)).length;return `<button class="opt" data-a="gxPick" data-id="${e.id}"><span class="grow"><strong>${esc(e.name)}</strong><br><span class="sub">${e.levels.length>1?e.levels.length+'단계 · ':''}기록 ${n}번</span></span></button>`}).join(''):'<p class="empty">더 넣을 종목이 없어요.</p>'}
       <button class="btn ghost" data-a="closeSheet">닫기</button>`;
+  }else if(s.kind==='critPick'){
+    const ex=getEx(UI.editEx),src=ex.levels[s.k].crit,last=ex.levels.length-1;
+    h=`<h2>다른 단계에도 적용</h2><p class="sub"><b>${s.k+1}단계 ${esc(ex.levels[s.k].name||'')}</b>의 기준 <b>${esc(critText(src))}</b>을 체크한 단계에 똑같이 넣어요. 체크한 단계의 원래 기준은 바뀌어요.</p>
+      <div class="row" style="flex-wrap:wrap;gap:6px;margin:10px 0"><button class="btn small soft" data-a="cpQuick" data-v="empty">기준 없는 단계만</button><button class="btn small soft" data-a="cpQuick" data-v="below">이 단계 아래 전부</button><button class="btn small soft" data-a="cpQuick" data-v="all">전부</button><button class="btn small ghost" data-a="cpQuick" data-v="none">모두 해제</button></div>
+      <div class="cplist">${ex.levels.map((l,i)=>{const self=i===s.k,isLast=i===last,fit=critFits(l,src),dis=self||isLast||!fit,on=s.sel.includes(i);
+        return `<button class="cprow ${on?'on':''}" ${dis?'disabled':`data-a="cpToggle" data-i="${i}"`} aria-pressed="${on}"><span class="cpbox">${self?'●':on?'✓':''}</span><span class="cpname"><b>${i+1}단계</b> ${esc(l.name||'')}</span>
+          <span class="cpnow">${self?'기준을 가져오는 단계':isLast?'마지막 단계 (다음 단계 없음)':!fit?`'${FIELDS[src.f]?FIELDS[src.f][0]:src.f}' 기록 안 함`:on?`${esc(critText(l.crit))} → <b>${esc(critText(src))}</b>`:esc(critText(l.crit))}</span></button>`}).join('')}</div>
+      <button class="btn primary block" data-a="cpApply" ${s.sel.length?'':'disabled'}>${s.sel.length?`${s.sel.length}개 단계에 적용 (${[...s.sel].sort((a,b)=>a-b).map(i=>i+1).join(', ')}단계)`:'적용할 단계를 체크하세요'}</button><button class="btn ghost" data-a="closeSheet">취소</button>`;
   }else if(s.kind==='leave'){
     h=`<h2>변경 내용을 저장할까요?</h2><p class="sub">저장하지 않으면 이번에 바꾼 내용이 모두 원래대로 돌아갑니다.</p>
       <button class="btn primary block" data-a="leaveSave">저장</button><button class="btn block" data-a="leaveDiscard">저장하지 않고 나가기</button><button class="btn ghost" data-a="closeSheet">계속 편집</button>`;
@@ -1533,8 +1549,6 @@ const A={
   lvField:d=>{const l=getEx(UI.editEx).levels[d.k];const k=l.fields.indexOf(d.f);k<0?l.fields.push(d.f):l.fields.splice(k,1);save()},
   lvAdd:()=>{const ex=getEx(UI.editEx);const last=ex.levels[ex.levels.length-1];
     if(ex.levels.length===1&&last.name==='기본')last.name='';
-    const above=[...ex.levels.slice(0,-1)].reverse().find(l=>l.crit);   // 이전 마지막 단계는 이제 기준이 필요 → 가장 가까운 위 단계 기준을 그대로 이어 받음
-    if(above&&above.crit&&!last.crit&&(above.crit.type!=='goal'||last.fields.includes(above.crit.f)))last.crit=JSON.parse(JSON.stringify(above.crit));
     ex.levels.push({id:uid(),name:'',fields:[...last.fields]});save()},
   lvMove:d=>{const l=getEx(UI.editEx).levels;const i=+d.k,j=i+ +d.d;[l[i],l[j]]=[l[j],l[i]];save()},
   lvDel:d=>{const ex=getEx(UI.editEx);const l=ex.levels[d.k];
@@ -1607,13 +1621,16 @@ Object.assign(A,{
   lvYes:()=>{const s=UI.sheet,u=s.list.shift(),ex=getEx(u.exId);D.routines.forEach(r=>r.items.forEach(i=>{if(i.exId===u.exId&&i.levelId===u.from)i.levelId=u.to}));
     save();toast(`${ex.name}: ${ex.levels.findIndex(l=>l.id===u.to)+1}단계로 올렸어요`);if(!s.list.length)UI.sheet=null},
   lvNo:()=>{const s=UI.sheet;s.list.shift();if(!s.list.length)UI.sheet=null},
-  critAll:d=>{const ex=getEx(UI.editEx),k=+d.k,src=ex.levels[k].crit;if(!src)return;
-    if(UI.critArm!==k){UI.critArm=k;return}UI.critArm=null;let n=0;const skip=[];
-    ex.levels.forEach((l,i)=>{if(i===k||i===ex.levels.length-1)return;
-      if(src.type==='goal'&&!l.fields.includes(src.f)){skip.push(l.name||`${i+1}단계`);return}
-      l.crit=JSON.parse(JSON.stringify(src));n++});
-    save();toast(`${n}개 단계에 같은 기준을 넣었어요.${skip.length?` (${skip.join(', ')}은 '${FIELDS[src.f]?FIELDS[src.f][0]:src.f}' 기록 항목이 없어 건너뜀)`:''}`)},
-  critType:d=>{UI.critArm=null;const l=getEx(UI.editEx).levels[+d.k];if(d.t==='none')delete l.crit;else l.crit={type:d.t,...(d.t==='goal'?{f:l.fields[0]||'reps',v:'',sets:''}:{n:10,per:'day'})}},
+  critPick:d=>{const ex=getEx(UI.editEx),k=+d.k;if(!ex.levels[k].crit)return;
+    const ok=i=>i!==k&&i<ex.levels.length-1&&critFits(ex.levels[i],ex.levels[k].crit);
+    UI.sheet={kind:'critPick',k,sel:ex.levels.map((l,i)=>ok(i)&&!l.crit?i:-1).filter(i=>i>=0)}},   // 처음엔 '기준이 없는 단계'만 골라 둠
+  cpToggle:d=>{const s=UI.sheet,i=+d.i,n=s.sel.indexOf(i);if(n<0)s.sel.push(i);else s.sel.splice(n,1)},
+  cpQuick:d=>{const s=UI.sheet,ex=getEx(UI.editEx),src=ex.levels[s.k].crit,ok=i=>i!==s.k&&i<ex.levels.length-1&&critFits(ex.levels[i],src);
+    s.sel=d.v==='none'?[]:ex.levels.map((l,i)=>i).filter(i=>ok(i)&&(d.v==='all'||(d.v==='empty'&&!ex.levels[i].crit)||(d.v==='below'&&i>s.k)))},
+  cpApply:()=>{const s=UI.sheet,ex=getEx(UI.editEx),src=ex.levels[s.k].crit;if(!s.sel.length)return;
+    s.sel.forEach(i=>{ex.levels[i].crit=JSON.parse(JSON.stringify(src))});const n=s.sel.length;UI.sheet=null;save();
+    toast(`${s.sel.sort((a,b)=>a-b).map(i=>i+1).join(', ')}단계에 같은 기준을 넣었어요.`)},
+  critType:d=>{const l=getEx(UI.editEx).levels[+d.k];if(d.t==='none')delete l.crit;else l.crit={type:d.t,...(d.t==='goal'?{f:l.fields[0]||'reps',v:'',sets:''}:{n:10,per:'day'})}},
   critPer:d=>{getEx(UI.editEx).levels[+d.k].crit.per=d.v},
   tagEdMode:d=>{UI.tagEd=UI.tagEd===d.k?null:d.k},
   tagEdit:d=>{const x=tagSrc(d.k).find(y=>y.id===d.id);UI.sheet={kind:'tedit',k:d.k,id:d.id||'',name:x?x.name:'',name0:x?x.name:'',ask:false}},
