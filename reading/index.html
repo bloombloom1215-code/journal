@@ -171,6 +171,11 @@ img.ld{min-height:120px;background:var(--line);border:0}
 .pthumb .t{position:absolute;top:-8px;right:-8px;background:var(--surface);border:1px solid var(--line);border-radius:99px;width:24px;height:24px;padding:0;line-height:1}
 .lb{position:fixed;inset:0;z-index:50;background:rgba(10,14,16,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:max(16px,env(safe-area-inset-top,0px)) 16px;color:#fff;cursor:zoom-out}
 .lb img{max-width:100%;max-height:88vh;object-fit:contain;background:#fff;border-radius:6px}
+.rlist{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.rrow{display:flex;align-items:center;gap:8px;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-width:0}
+.rrow.dragging{opacity:.75;border-color:var(--accent);box-shadow:0 4px 14px rgba(0,0,0,.12)}
+.rhandle{cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;font-size:20px;line-height:1;color:var(--muted);padding:4px 8px}
+.rtext{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .composer .f{display:flex;flex-direction:column;gap:4px}
 .composer label{font-size:12px;color:var(--muted)}
 .q-item{padding:10px 0;border-top:1px solid var(--line)}
@@ -495,6 +500,21 @@ function editHTML(n){
      <select id="ne-stage">${['완독 정리','중간 정리'].map(x=>`<option ${x===(n.stage||'완독 정리')?'selected':''}>${x}</option>`).join('')}</select>
      <span style="flex:1"></span><button type="button" class="btn sm ghost" data-act="mvup" data-id="${n.id}" aria-label="위로">↑</button><button type="button" class="btn sm ghost" data-act="mvdn" data-id="${n.id}" aria-label="아래로">↓</button></div>
    <div class="row"><button class="btn sm">저장</button><button type="button" class="btn sm ghost" data-act="editno">취소</button></div></form>`}
+/* ---------- 순서 바꾸기: 손잡이(≡)를 끌거나 ↑↓ ---------- */
+function rowHTML(n){const t=(n.text||'').split('\n')[0]||(n.detail||'').split('\n')[0]||(n.imgs&&n.imgs.length?'(그림)':'');
+  return`<div class="rrow" data-id="${n.id}"><span class="rhandle" aria-label="끌어서 순서 바꾸기">≡</span><span class="chip">${esc(n.type)}</span>
+   <span class="rtext">${esc(t.replace(/==/g,''))}</span>${n.imgs&&n.imgs.length?`<span class="small muted">그림 ${n.imgs.length}</span>`:''}
+   <button type="button" class="btn sm ghost" data-act="mvup" data-id="${n.id}" aria-label="위로">↑</button><button type="button" class="btn sm ghost" data-act="mvdn" data-id="${n.id}" aria-label="아래로">↓</button></div>`}
+function saveOrder(list){[...list.querySelectorAll('.rrow')].forEach((r,k)=>{const n=note(r.dataset.id);if(n&&(n.order||0)!==k+1)put('notes',{...n,order:k+1})})}
+let DRAG=null;
+document.addEventListener('pointerdown',e=>{const h=e.target.closest('.rhandle');if(!h)return;e.preventDefault();
+  const row=h.closest('.rrow');DRAG={row,list:row.parentElement,id:e.pointerId};row.classList.add('dragging');try{h.setPointerCapture(e.pointerId)}catch(_){}});
+document.addEventListener('pointermove',e=>{if(!DRAG||e.pointerId!==DRAG.id)return;e.preventDefault();
+  const rows=[...DRAG.list.querySelectorAll('.rrow:not(.dragging)')];let before=null;
+  for(const r of rows){const b=r.getBoundingClientRect();if(e.clientY<b.top+b.height/2){before=r;break}}
+  if(before)DRAG.list.insertBefore(DRAG.row,before);else DRAG.list.appendChild(DRAG.row)},{passive:false});
+const endDrag=e=>{if(!DRAG||e.pointerId!==DRAG.id)return;DRAG.row.classList.remove('dragging');saveOrder(DRAG.list);DRAG=null;render()};
+document.addEventListener('pointerup',endDrag);document.addEventListener('pointercancel',endDrag);
 function moveNote(id,dir){const n=note(id);
   const list=S.notes.filter(x=>x.bookId===n.bookId&&x.date===n.date).sort((a,b)=>(a.order||0)-(b.order||0));
   const i=list.findIndex(x=>x.id===id),j=i+dir;if(j<0||j>=list.length)return;
@@ -618,7 +638,7 @@ function vBook(){
     <div class="bsearch"><input id="book-q" placeholder="책 찾기 · 제목, 지은이, 옮긴이, 주제" autocomplete="off"><div id="book-q-res" class="bres" hidden></div></div></nav>`;
   return`${switcher}<div class="grid2"><div class="stack" style="min-width:0">
    <div class="row" style="justify-content:space-between"><div><h2 style="margin:0">${esc(b.title)}</h2><div class="small credits">${creditLine(b)}</div><div class="small">${b.topics.map(t=>`<span class="chip">${esc(topicPath(t))}</span>`).join(' ')}</div></div>
-     <div class="row"><button class="btn sm ${CORE?'':'ghost'}" data-act="core" aria-pressed="${CORE}" title="칠한 문장과 그림만 보여요">${CORE?'✓ 핵심만 보기':'핵심만 보기'}</button><button class="btn sm ghost" data-act="editbook">${V.editBook?'닫기':'책 정보 수정'}</button></div></div>
+     <div class="row">${dates.length?`<button class="btn sm ${V.reorder?'':'ghost'}" data-act="reorder">${V.reorder?'✓ 순서 바꾸기 끝':'순서 바꾸기'}</button>`:''}<button class="btn sm ${CORE?'':'ghost'}" data-act="core" aria-pressed="${CORE}" title="칠한 문장과 그림만 보여요">${CORE?'✓ 핵심만 보기':'핵심만 보기'}</button><button class="btn sm ghost" data-act="editbook">${V.editBook?'닫기':'책 정보 수정'}</button></div></div>
    ${V.editBook?`<form class="panel stack composer" id="f-bedit"><div class="row">
      <div class="f" style="flex:2 1 160px"><label for="be-title">제목</label><input id="be-title" value="${esc(b.title)}" required></div>
      ${''}<div class="f"><label for="be-pages">총 쪽수</label><input id="be-pages" type="number" min="1" value="${b.pages||''}" style="width:100px"></div></div>
@@ -633,7 +653,7 @@ function vBook(){
      ${b.status!=='완독'?`<button type="button" class="btn sm" data-act="finish">완독으로 표시</button>`:''}
      ${b.status==='읽는 중'||b.status==='읽을 책'?(V.stopArm?`<input id="stop-pg" type="number" min="1" placeholder="멈춘 쪽" style="width:100px" required><button class="btn sm ghost">멈춤 확정</button>`:`<button type="button" class="btn sm ghost" data-act="pause">멈춤</button>`):''}
      ${b.status==='완독'||b.status==='멈춤'?`<button type="button" class="btn sm ghost" data-act="resume">다시 읽는 중</button>`:''}</form>
-   ${dates.length?'':`<p class="muted small">정리는 다 읽었을 때, 또는 오래 멈출 때 남겨요.</p>`}${dates.map(d=>`<article class="entry"><div class="date">${d} · ${esc(ns.find(n=>n.date===d).stage||'완독 정리')}</div>${ns.filter(n=>n.date===d).map(blockHTML).join('')}</article>`).join('')}
+   ${dates.length?'':`<p class="muted small">정리는 다 읽었을 때, 또는 오래 멈출 때 남겨요.</p>`}${dates.map(d=>`<article class="entry"><div class="date">${d} · ${esc(ns.find(n=>n.date===d).stage||'완독 정리')}</div>${V.reorder?`<div class="rlist" data-date="${d}">${ns.filter(n=>n.date===d).map(rowHTML).join('')}</div>`:ns.filter(n=>n.date===d).map(blockHTML).join('')}</article>`).join('')}
    ${vs.length?(()=>{const gs=S.vgroups.filter(g=>g.ids.some(id=>vs.some(v=>v.id===id)));const lone=vs.filter(v=>!v.parent||!vs.some(x=>x.id===v.parent));
      return`<article class="entry"><div class="divider">• • • • •</div><div class="stack">${gs.map(cmpHTML).join('')}${lone.map(v=>vCard(v,false)).join('')}</div></article>`})():''}
    <form class="panel stack composer" id="f-note"><h3 style="margin:0">블록 추가 · ${b.status==='완독'?'완독 정리':'중간 정리'}</h3>
@@ -736,6 +756,7 @@ document.addEventListener('click',e=>{
   else if(a==='pdel'){PEND[el.dataset.k].splice(+el.dataset.i,1);renderPend(el.dataset.k);return}
   else if(a==='lightbox'){lightbox(id);return}
   else if(a==='clipimg'){clipImg(el.dataset.k);return}
+  else if(a==='reorder'){V.reorder=!V.reorder;V.editNote=null;V.delArm=null}
   else if(a==='core'){CORE=!CORE;try{localStorage.setItem('rd_core',CORE?'1':'0')}catch(e){}}
   else if(a==='mvup'||a==='mvdn'){moveNote(id,a==='mvup'?-1:1)}
   else if(a==='delok'){V.delArm=null;dropPhotos((note(id)||{}).imgs);S.links.filter(l=>l.from===id||l.to===id).forEach(l=>del('links',l.id));del('notes',id);toast('삭제했어요')}
