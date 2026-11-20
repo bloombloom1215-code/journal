@@ -943,12 +943,12 @@ const cacheKey = () => 'jnl_cache_' + (CONN ? CONN.env : 'local');
 const isTmpPhoto = x => String(x).startsWith('tmp_');
 function settingsObj(){
   return { condTags:S.condTags, checks:S.checks, exTypes:S.exTypes, routines:S.routines, trackSel:S.trackSel, anSel:S.anSel, anIncEx:S.anIncEx, togOpen:S.togOpen,
-    wSlots:S.wSlots, wDefault:S.wDefault, wReserve:S.wReserve, wroutines:S.wroutines, dayStart:S.dayStart, dayEnd:S.dayEnd, dayCut:dayCut(),
+    wSlots:S.wSlots, wDefault:S.wDefault, wReserve:S.wReserve, wroutines:S.wroutines, wkColor:S.wkColor || null, dayStart:S.dayStart, dayEnd:S.dayEnd, dayCut:dayCut(),
     cat:CAT, areas:AREAS, presets:PRESETS };
 }
 function applySettings(v){
   if (!v || typeof v !== 'object') return;
-  ['condTags','checks','exTypes','routines','trackSel','anSel','anIncEx','togOpen','wSlots','wDefault','wReserve','wroutines','dayStart','dayEnd','dayCut'].forEach(k => { if (v[k] !== undefined) S[k] = v[k]; }); syncDayCut();
+  ['condTags','checks','exTypes','routines','trackSel','anSel','anIncEx','togOpen','wSlots','wDefault','wReserve','wroutines','wkColor','dayStart','dayEnd','dayCut'].forEach(k => { if (v[k] !== undefined) S[k] = v[k]; }); syncDayCut();
   if (v.cat && typeof v.cat === 'object'){ Object.keys(CAT).forEach(k => delete CAT[k]); Object.assign(CAT, v.cat); }
   if (v.areas && typeof v.areas === 'object') AREAS = v.areas;
   if (Array.isArray(v.presets)) PRESETS = v.presets;
@@ -1168,6 +1168,7 @@ function flushDiary(){ document.querySelectorAll('textarea.dtext').forEach(ta =>
 function doRender(){
   flushDiary(); if (S.loaded && CONN) schedulePush(); // 설정(데일리 체크·증상 등)을 바꾼 것도 시트에 올라가게
   pendingRender = false; clearAutoCache();
+  document.documentElement.style.setProperty('--wkapp', S.wkColor || WK_COLOR);
   const wide = isWide(), now = new Date();
   if (!wide) S.drawer = null;
   document.body.classList.toggle('fill', wide && S.tab==='home' && S.vw!=='month');
@@ -1431,6 +1432,7 @@ let WK = { loaded:false, routines:[], ex:[], tpl:[], weeks:{}, logs:[] };
 let WK_SAVED = {};            // 'plan:<월요일>' → 시트에 있는 내용(JSON 글자). 다르면 저널이 올림
 const WK_AHEAD = 8;           // 기본 주간 계획을 저널 캘린더에 미리 펼쳐 두는 주 수(이번 주 포함 +8주)
 /* 운동 앱 아이콘(아령, icons/workout.svg와 같은 그림) — 그림 파일을 따로 불러오지 않고 CSS에 한 번만 넣어 둠 */
+const WK_COLOR = '#D9412A'; // 운동 앱 아이콘 빨강(기본값). 바꾼 색은 S.wkColor(설정, 시트에 저장)
 const WKIC = '<i class="wkic" aria-hidden="true"></i>';
 const wkMon = k => ymd(weekStart(k));
 const wkR = id => WK.routines.find(r => r.id === id);
@@ -2979,7 +2981,7 @@ function newSeason(id){
 }
 /* --- 분야 편집 --- */
 function openAreas(){ const prev = sheetState && sheetState.kind === 'pj' ? (readProject(), sheetState) : null;
-  sheetState = { kind:'areas', prev, list:Object.entries(AREAS).map(([id,a]) => ({ id, ...a })) }; sheetOpenedAt = Date.now(); drawAreas(); }
+  sheetState = { kind:'areas', prev, list:Object.entries(AREAS).map(([id,a]) => ({ id, ...a })), wkc:S.wkColor || WK_COLOR }; sheetOpenedAt = Date.now(); drawAreas(); }
 function drawAreas(){
   const st = sheetState;
   $('#sheetHost').innerHTML = `<div class="scrim" data-act="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="프로젝트 분야"><h3>프로젝트 분야</h3>
@@ -2988,6 +2990,9 @@ function drawAreas(){
       <button type="button" class="x" data-act="area-del" data-i="${i}" ${st.list.length===1?'disabled':''} aria-label="삭제">×</button></div>
       <div class="swatches">${PALETTE.map(c => `<button type="button" data-act="area-color" data-i="${i}" data-v="${c}" aria-pressed="${a.c===c}" style="--c:${c}" aria-label="색 ${c}"></button>`).join('')}</div></div>`).join('')}</div>
     <button type="button" class="btn" data-act="area-add" style="margin-top:10px">+ 분야 추가</button>
+    <div class="tagrow" style="margin-top:16px"><div class="sublabel" style="margin-top:0">운동 앱 일정 색</div>
+      <p class="hint" style="margin:0 0 6px">월간 화면에서 운동 앱 계획의 왼쪽 막대 색이에요. 직접 넣은 운동과 구분돼요.</p>
+      <div class="swatches">${[WK_COLOR, ...PALETTE.filter(c => c !== WK_COLOR)].map(c => `<button type="button" data-act="wk-color" data-v="${c}" aria-pressed="${st.wkc===c}" style="--c:${c}" aria-label="색 ${c}"></button>`).join('')}</div></div>
     <div class="foot"><span></span><div class="btns"><button class="btn" data-act="area-cancel">취소</button><button class="btn pri" data-act="area-done">완료</button></div></div></div></div>`;
 }
 const readAreas = () => sheetState.list.forEach((a,i) => { const n = document.getElementById('ar_'+i); if (n) a.label = n.value.trim() || a.label; });
@@ -3001,11 +3006,12 @@ function pj2Click(a, el){
     case 'pj-archive-old': { const p = S.projects[el.dataset.id]; p.archived = !p.archived; if (p.archived && !p.end) p.end = thisYM(); if (!p.archived && p.end && p.end < thisYM()) p.end = ''; doRender(); toast(p.archived ? '보관했습니다. 기록은 그대로 남아 있어요.' : '다시 진행 중으로 돌렸습니다.'); return true; }
     case 'area': readProject(); sheetState.draft.area = el.dataset.v; drawProject(); return true;
     case 'area-mgr': openAreas(); return true;
+    case 'wk-color': readAreas(); sheetState.wkc = el.dataset.v; drawAreas(); return true;
     case 'area-color': readAreas(); sheetState.list[+el.dataset.i].c = el.dataset.v; drawAreas(); return true;
     case 'area-add': readAreas(); sheetState.list.push({ id:'a'+newId().slice(0,6), label:'새 분야', c:PALETTE[sheetState.list.length % PALETTE.length] }); drawAreas(); return true;
     case 'area-del': readAreas(); sheetState.list.splice(+el.dataset.i, 1); drawAreas(); return true;
     case 'area-cancel': areasBack(); return true;
-    case 'area-done': { readAreas(); AREAS = Object.fromEntries(sheetState.list.map(a => [a.id, { label:a.label, c:a.c }]));
+    case 'area-done': { readAreas(); S.wkColor = sheetState.wkc === WK_COLOR ? null : sheetState.wkc; AREAS = Object.fromEntries(sheetState.list.map(a => [a.id, { label:a.label, c:a.c }]));
       const first = Object.keys(AREAS)[0]; Object.values(S.projects).forEach(p => { if (!AREAS[p.area]) p.area = first; });
       if (sheetState.prev && !AREAS[sheetState.prev.draft.area]) sheetState.prev.draft.area = first; areasBack(); return true; }
     case 'set-tags': openSub('tags', { list:Object.entries(CAT).map(([id,t]) => ({ id, label:t.label, c:t.c, show:t.show||'month' })), arm:null }); return true;
