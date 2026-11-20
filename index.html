@@ -359,8 +359,9 @@ body.fill .dayw{flex:1}
 .cemo-btn.bad[aria-pressed="true"]{background:color-mix(in srgb,var(--bad) 13%,var(--surface));border-color:var(--bad);box-shadow:0 0 0 1px var(--bad) inset}
 .anl{margin-top:12px}
 .htr .anlhead .sp{flex:1}
-.ci.wpr{background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
-.ci.wpr.wdone{background:var(--accent-soft);color:var(--accent);font-weight:600}
+/* 월간: 운동 앱 계획은 아이콘·시간·완료 표시 없이 왼쪽 막대 색(운동 앱 아이콘 빨강)으로만 구분 */
+:root{--wkapp:#D9412A}
+.ci.wpr{--c:var(--wkapp)}
 .wsgrid{display:grid;grid-template-columns:72px minmax(0,1fr);gap:6px 10px;align-items:center}
 .wsday{display:flex;align-items:center;gap:6px;cursor:pointer}.wsday input{width:18px;height:18px;accent-color:var(--accent)}
 .wsday.on b{color:var(--accent)}
@@ -1230,7 +1231,7 @@ function chipList(k, evs, day, interactive){
   if (day.face) out.push(`<span class="ci flag" role="button" data-act="open-day" data-date="${k}">얼굴관리 ✓</span>`);
   if (!interactive) wpOn(k).forEach(w => out.push(wpChip(w, true)));
   if (!interactive) blocksOn(k).filter(b=>showOf(b)==='month').forEach(b =>
-    out.push(b.routineId ? `<span class="ci wpr${b.done ? ' wdone' : ''}" role="button" data-act="wp-open" data-id="${b.id}" style="--c:${(CAT[b.cat]||CAT.etc).c}" title="운동 앱 계획">${WKIC}${b.done ? '✓ ' : ''}${b.done ? '' : `<em style="margin:0 3px 0 0">${hm(b.start)}</em>`}${esc(dispTitle(b))}</span>`
+    out.push(b.routineId ? `<span class="ci wpr" role="button" data-act="wp-open" data-id="${b.id}" title="운동 앱 계획">${esc(dispTitle(b))}</span>`
       : `<span class="ci ${b.done?'plan done':''}" role="button" data-act="blk-open" data-id="${b.id}" style="--c:${(CAT[b.cat]||CAT.etc).c}"><em style="margin:0 3px 0 0">${hm(b.start)}</em>${esc(dispTitle(b))}</span>`));
   return out.join('');
 }
@@ -1273,7 +1274,7 @@ function calHead(views){
   }
   const seg = `<div class="seg" role="group" aria-label="보기">${views.map(([k,l])=>`<button data-act="view" data-v="${k}" aria-pressed="${v===k}">${l}</button>`).join('')}</div>`;
   const legend = v==='week' ? `<div class="legend">${Object.values(CAT).map(c=>`<span><i style="--c:${c.c}"></i>${c.label}</span>`).join('')}</div><button class="btn sm" data-act="range" title="시간표에 보일 시간대">일과 ${hm(DS())}–${hm(DE())}${outCount() ? ` · 밖 ${outCount()}개` : ''}</button><div class="seg fitseg" role="group" aria-label="시간표 보기"><button data-act="ttfit" data-v="0" aria-pressed="${!S.ttFit}" title="칸이 커서 입력하기 편함">입력용</button><button data-act="ttfit" data-v="1" aria-pressed="${!!S.ttFit}" title="24시간이 한 화면에">한눈에</button></div><button class="btn sm" data-act="wset-open">${WKIC}운동 자리</button><button class="btn sm" data-act="tpl-save">템플릿 저장</button><button class="btn sm" data-act="tpl-load">템플릿 불러오기</button>`
-    : `<div class="legend">${['expire','event','pay','care'].map(k=>`<span><i class="${KIND[k].hollow?'hollow':''}" style="--c:${KIND[k].color}"></i>${KIND[k].label}</span>`).join('')}<span><i style="--c:var(--accent)"></i>운동·얼굴</span></div>`;
+    : `<div class="legend">${['expire','event','pay','care'].map(k=>`<span><i class="${KIND[k].hollow?'hollow':''}" style="--c:${KIND[k].color}"></i>${KIND[k].label}</span>`).join('')}<span><i style="--c:var(--accent)"></i>운동·얼굴</span><span><i style="--c:var(--wkapp)"></i>운동 앱</span></div>`;
   const ADD = { day:['+ 할 일','add-day'], week:['+ 계획','add-week'], month:['+ 이달 할 일','add-month'], year:['+ 프로젝트','pj-new'] }[v];
   const spendHtml = v === 'year' ? '' : `<span class="spend">고정지출 <b class="num">${won(spend.total)}</b> · ${spend.n}건</span>`;
   if (!wide) return `<div class="calhead">
