@@ -1464,10 +1464,10 @@ function wkLogsOfWeek(mon){ // 기록을 주별로 한 번만 묶어 둠(기록 
 }
 function wkStatus(mon){ // 계획 id → 실제로 한 날짜 (같은 날 같은 루틴 먼저, 남으면 그 주 다른 날)
   const items = wkWeek(mon), pool = [], out = {};
-  wkLogsOfWeek(mon).forEach(l => wkLogRts(l).forEach(r => pool.push({ rid:r.id, date:l.date, used:false })));
-  items.forEach(p => { const m = pool.find(x => !x.used && x.rid === p.rid && x.date === p.date); if (m){ m.used = true; out[p.id] = m.date; } });
-  items.forEach(p => { if (out[p.id]) return; const m = pool.find(x => !x.used && x.rid === p.rid); if (m){ m.used = true; out[p.id] = m.date; } });
-  return out;
+  wkLogsOfWeek(mon).forEach(l => wkLogRts(l).forEach(r => pool.push({ rid:r.id, date:l.date, part:!!l.part, prog:l.prog, used:false })));
+  items.forEach(p => { const m = pool.find(x => !x.used && x.rid === p.rid && x.date === p.date); if (m){ m.used = true; out[p.id] = m; } });
+  items.forEach(p => { if (out[p.id]) return; const m = pool.find(x => !x.used && x.rid === p.rid); if (m){ m.used = true; out[p.id] = m; } });
+  return out; // 계획 id → { date:한 날, part:틈틈이 루틴을 일부만 함, prog:[한 것, 전체] }
 }
 function wkItems(r){ if (!r) return [];
   return (r.items || []).map(it => { if (it.subRid){ const s = wkR(it.subRid); return s ? s.name + ' 루틴' : ''; }
@@ -1478,13 +1478,13 @@ function wkMons(){ const cur = wkMon(todayStr()), s = new Set(Object.keys(WK.wee
 function wkSync(){
   if (!WK.loaded) return false;
   const want = {};
-  wkMons().forEach(mon => { const st = wkStatus(mon); wkWeek(mon).forEach(p => { if (wkR(p.rid)) want['wk:' + p.id] = { p, done:st[p.id] || null }; }); });
+  wkMons().forEach(mon => { const st = wkStatus(mon); wkWeek(mon).forEach(p => { if (wkR(p.rid)) want['wk:' + p.id] = { p, m:st[p.id] || null }; }); });
   const next = { ...S.blocks }; let ch = false;
-  Object.entries(want).forEach(([bid, { p, done }]) => {
+  Object.entries(want).forEach(([bid, { p, m }]) => { const done = m && !m.part ? m.date : null, part = m && m.part ? (m.prog || [0,0]) : null;
     const r = wkR(p.rid), b = next[bid], { updatedAt, ...cmp } = b || {};
     let nb = b ? { ...cmp } : (() => { const tm = wpTime(p.date, p.rid); return { date:p.date, start:tm.start, end:tm.end, cat:'exercise', show:'month', bg:false, subs:[], memo:'' }; })();
     if (b && b.date !== p.date && !b.status){ const tm = wpTime(p.date, p.rid); nb.start = tm.start; nb.end = tm.end; }
-    Object.assign(nb, { date:p.date, title:r.name, items:wkItems(r), routineId:p.rid, planId:p.id, src:'workout', done:!!done, doneOn:done || null });
+    Object.assign(nb, { date:p.date, title:r.name, items:wkItems(r), routineId:p.rid, planId:p.id, src:'workout', done:!!done, doneOn:done || null, part });
     if (!b || JSON.stringify(cmp) !== JSON.stringify(nb)){ next[bid] = { ...nb, updatedAt:new Date().toISOString() }; ch = true; }
   });
   Object.keys(next).forEach(id => { if (id.startsWith('wk:') && !want[id]){ delete next[id]; ch = true; } });
@@ -1609,7 +1609,7 @@ function wpSheet(){
       <div class="wprow"><span>시간</span><div><b class="num">${hm(b.start)}–${hm(b.end)}</b> <span class="muted">잡아 둔 ${Math.round((b.end-b.start)/6)/10}시간</span>
         ${isDef ? '' : `<button type="button" class="btn sm" data-act="wp-reset" data-id="${id}">운동 자리(${DOWK[parse(b.date).getDay()]} ${hm(slotK)})로 되돌리기</button>`}
         <div class="hint" style="margin-top:4px">시간은 저널에만 있어요. 주간·일간에서 블록을 끌어 바꿔요.</div></div></div>
-      <div class="wprow"><span>기록</span><div>${b.done ? '운동 앱에 기록됨 ✓' : '<span class="muted">아직 기록 없음</span>'}<div class="hint" style="margin-top:4px">운동 앱에 기록을 저장하면 저널에도 자동으로 체크돼요.</div></div></div>
+      <div class="wprow"><span>기록</span><div>${b.done ? '운동 앱에 기록됨 ✓' : b.part ? `◐ 부분 ${b.part[0]}/${b.part[1]} 완료 (틈틈이 루틴, 운동 앱에서 이어서 하기)` : '<span class="muted">아직 기록 없음</span>'}<div class="hint" style="margin-top:4px">운동 앱에 기록을 저장하면 저널에도 자동으로 체크돼요.</div></div></div>
     </div>
     <div style="display:flex;justify-content:space-between;gap:8px;margin-top:12px"><button type="button" class="btn ${S.wpDelArm ? 'armed' : ''}" style="color:var(--bad)" data-act="wp-del" data-id="${id}">${S.wpDelArm ? '한 번 더 누르면 삭제' : '계획 삭제'}</button>
       <span style="display:flex;gap:8px"><a class="btn" href="${PROTO_WK_HREF}">운동 앱 열기</a><button type="button" class="btn pri" data-act="wp-close">닫기</button></span></div>
@@ -2456,7 +2456,7 @@ const vTop = (b, ppm) => (Math.max(b.start, DS()) - DS()) * ppm, vH = (b, ppm) =
 function blkHtml(b, ppm){
   const c = (CAT[b.cat]||CAT.etc).c, h = vH(b, ppm), subs = b.subs || [];
   return `<div class="blk ${b.done?'done':''}" data-id="${b.id}" style="top:${vTop(b, ppm)}px;height:${h-2}px;left:calc(${b.lane}*100%/${b.n} + 1px);width:calc(100%/${b.n} - 3px);--c:${c}">
-    <b>${b.routineId ? WKIC : ''}${esc(dispTitle(b)) || '(제목 없음)'}</b>${h > 34 ? `<small>${hm(b.start)}–${hm(b.end)}${b.routineId ? (b.done ? ' · ✓ 운동 앱 기록' : ' · 운동 앱 루틴') : ''}${subs.length ? ` · ${subs.filter(x=>x.d).length}/${subs.length}` : ''}</small>` : ''}<span class="rz"></span></div>`;
+    <b>${b.routineId ? WKIC : ''}${esc(dispTitle(b)) || '(제목 없음)'}</b>${h > 34 ? `<small>${hm(b.start)}–${hm(b.end)}${b.routineId ? (b.done ? ' · ✓ 운동 앱 기록' : b.part ? ` · ◐ 부분 ${b.part[0]}/${b.part[1]}` : ' · 운동 앱 루틴') : ''}${subs.length ? ` · ${subs.filter(x=>x.d).length}/${subs.length}` : ''}</small>` : ''}<span class="rz"></span></div>`;
 }
 function labelMode(b, blocks, ppm){ // 이름표 자리: 위가 비면 위, 아래가 비면 아래, 둘 다 가리면 오른쪽 위 작은 탭
   const hit = (a, z) => blocks.some(x => x.start < z && a < x.end), w = Math.max(20, 18 / (ppm || 0.8)); // 이름표 높이(약 18px)만큼의 분
@@ -3370,7 +3370,7 @@ function dayTimetable(k, hp){
       : `<button type="button" data-act="st" data-v="canceled" data-id="${b.id}">취소</button><button type="button" data-act="st" data-v="onhold" data-id="${b.id}">보류</button>`;
     return `<div class="dblk ${b.done?'done':''} ${tall?'tall':''}" data-did="${b.id}" style="top:${vTop(b,ppm)}px;height:${h-2}px;left:calc(${b.lane}*100%/${b.n} + 2px);width:calc(100%/${b.n} - 4px);--c:${c}">
       <input type="checkbox" data-act="blk-done" data-id="${b.id}" ${b.done?'checked':''} aria-label="완료">
-      <div class="dbody"><b>${b.routineId ? WKIC : ''}${esc(dispTitle(b))}</b><small>${hm(b.start)}–${hm(b.end)}${b.routineId ? (b.done ? ' · ✓ 운동 앱 기록' : ' · 운동 앱 루틴') : ''}${subs.length?` · 세부 ${subs.filter(x=>x.d).length}/${subs.length}`:''}</small></div>
+      <div class="dbody"><b>${b.routineId ? WKIC : ''}${esc(dispTitle(b))}</b><small>${hm(b.start)}–${hm(b.end)}${b.routineId ? (b.done ? ' · ✓ 운동 앱 기록' : b.part ? ` · ◐ 부분 ${b.part[0]}/${b.part[1]}` : ' · 운동 앱 루틴') : ''}${subs.length?` · 세부 ${subs.filter(x=>x.d).length}/${subs.length}`:''}</small></div>
       <div class="dacts">${acts}</div><span class="rz drz"></span></div>`; }).join('');
   const out = [...shadesOn(k), ...blocksOn(k)].filter(b => !inRange(b));
   const canceled = Object.entries(S.blocks).filter(([,b]) => b.date === k && b.status === 'canceled');
