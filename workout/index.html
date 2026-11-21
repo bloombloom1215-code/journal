@@ -228,15 +228,10 @@ select.inp{padding-right:8px}
 .seg button.on{background:var(--surface);color:var(--ink);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.12)}
 textarea.inp{padding:12px;min-height:80px;resize:vertical}
 .sticky-foot{position:sticky;bottom:calc(76px + var(--sab));z-index:5}
-/* 운동 중: 시간·진행을 아래 저장 버튼과 한 덩어리로(엄지 닿는 곳, 크게) */
-.sfoot{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:18px;background:var(--surface);border:1px solid var(--line);box-shadow:0 -6px 20px -12px rgba(0,0,0,.35)}
-.sftop{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}
-.sfoot .clock{font-family:var(--f-num);font-size:30px;font-weight:700;line-height:1}
-.sfoot .sfmode{font-size:15px;font-weight:800;color:var(--accent)}
-.sfoot .progress{height:10px}.sfoot .cnt{font-family:var(--f-num);font-size:16px;font-weight:700;white-space:nowrap}
-.sfoot .ivmini{font-size:13px;font-weight:700;color:var(--accent)}
-.spbar{display:flex;align-items:center;gap:8px;margin:-6px 0 14px;padding:10px 12px;border-radius:12px;background:var(--sunk)}
-.spbar.saved{background:var(--ok-soft)}.spbar .grow{flex:1;font-size:14px}.spbar b{font-family:var(--f-num)}
+/* 운동 중 위 막대: 스크롤해도 늘 보이게 고정, 크게 */
+.sbar.big{padding-top:calc(12px + var(--safet));padding-bottom:12px}
+.sbar.big .clock{font-size:30px;font-weight:700}.sbar.big .progress{height:10px}.sbar.big .cnt{font-size:17px;font-weight:700}
+.sbar .sfmode{font-size:17px;font-weight:800;color:var(--accent)}
 .pchip.part{opacity:1;border-style:dashed}
 @media (min-width:900px){.sticky-foot{bottom:16px}}
 
@@ -834,10 +829,10 @@ function planToday(){const t=today(),cur=monOf(t);ensureWeek(cur);
     if(p.done){const l=D.logs.find(x=>x.id===p.lid)||{};
       if(l.part&&l.date===t&&getR(p.rid))   // 틈틈이 루틴을 일부만 한 날: 아직 할 일처럼 보여 주고 이어서 하기
         return `<div class="rrow planrow"><div class="rmain"><span class="swatch" style="background:${r.color}"></span><span class="t"><strong>${esc(r.name)}</strong>
-          <span class="sub">◐ 부분 ${l.items.length}/${l.total}종목 · 틈틈이 · ${l.items.map(x=>esc(x.name)+' '+(x.at||'')).join(', ')}</span></span></div>
+          <span class="sub">◐ 부분 ${(l.prog||[])[0]}/${(l.prog||[])[1]} 완료 · 틈틈이</span></span></div>
           <button class="btn primary go" data-a="start" data-id="${p.rid}">▶ 이어서 하기</button></div>`;
       return `<div class="rrow planrow done"><div class="rmain"><span class="swatch" style="background:${r.color}"></span><span class="t"><strong>${esc(r.name)}</strong>
-        <span class="sub">${l.part?`◐ 부분 ${l.items.length}/${l.total}종목`:'✓ 완료'}${l.dur?' '+l.dur+'분':''}${l.spread?' · 틈틈이':''}${p.extra?' · 계획 밖':''}</span><span class="cum">누적 ${routineTotal(p.rid)}회</span></span></div>
+        <span class="sub">${l.part?`◐ 부분 ${(l.prog||[])[0]}/${(l.prog||[])[1]}`:'✓ 완료'}${l.dur?' '+l.dur+'분':''}${l.spread?' · 틈틈이':''}${p.extra?' · 계획 밖':''}</span><span class="cum">누적 ${routineTotal(p.rid)}회</span></span></div>
         <div class="dacts">${l.photo?`<img class="ophoto" src="${photoSrc(l.photo)}" alt="오운완 사진">`:wantsPhoto(l)?`<label class="btn small primary">오운완<input type="file" accept="image/*" data-photo="${p.lid}" hidden></label>`:''}
         <button class="btn small fbb" data-a="fbOpen" data-id="${p.lid}">${l.memo?'피드백 수정':'피드백'}</button><button class="btn small undo" data-a="undoDone" data-id="${p.lid}">되돌리기</button></div>
         ${l.memo?`<div class="fbk">${esc(l.memo)}</div>`:''}</div>`}
@@ -929,27 +924,17 @@ function startSession(ids,opt={}){const rs=ids.map(getR).filter(Boolean);if(!rs.
   rs.forEach(r=>{s.items.push(...routineEntries(r,s));s.rids.push(r.id)});sortSession(s);s.name=rs.map(r=>r.name).join(' + ')||'직접 기록';
   if(!opt.past&&rs.length===1&&rs[0].timed===false)spreadInit(s,rs[0]);
   D.session=s;UI.pick=[];if(opt.past)UI.view='today';save();scrollTo(0,0)}
-/* ===== 틈틈이 루틴(운동 시간 재기 끔): 종목마다 따로 저장, 같은 날 다시 열면 이어서 =====
-   기록은 그날 그 루틴 하나(log.spread). 종목마다 끝낸 시각(at), 다 못 하면 log.part=true(계획·저널에 '부분') */
+/* ===== 틈틈이 루틴(운동 시간 재기 끔): '지금까지 한 것 저장' → 같은 날 다시 열면 체크한 곳부터 이어서 =====
+   기록은 그날 그 루틴 하나(log.spread, 운동 시간 없음). 이어서 하려고 세션 모습 그대로(log.snap)도 같이 둠. 다 못 하면 log.part=true */
 const spreadLog=(rid,date)=>D.logs.find(l=>l.spread&&l.rid===rid&&l.date===date);
-function spreadInit(s,r){s.spread=true;s.start=null;const l=spreadLog(r.id,s.date);s.total=s.items.length;if(!l)return;s.logId=l.id;s.memo=l.memo||'';
-  l.items.forEach(li=>{const k=s.items.findIndex(e=>!e.saved&&e.uid&&e.uid===li.uid);const j=k>=0?k:s.items.findIndex(e=>!e.saved&&(e.kind==='block'?e.blockId===li.blockId:e.exId===li.exId));
-    if(j>=0)s.items[j]={...clone(li),saved:li.at||true};else s.items.push({...clone(li),saved:li.at||true})})}
-const spreadProg=s=>[s.items.filter(e=>e.saved).length,s.items.length];
-const hhmm=()=>{const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
-function cleanEntry(e){const c=clone(e);delete c.run;delete c.ht;delete c.bt;delete c.saved;
+function spreadInit(s,r){s.spread=true;s.start=null;const l=spreadLog(r.id,s.date);if(!l)return;s.logId=l.id;s.memo=l.memo||'';if(l.snap)s.items=clone(l.snap)}
+function cleanEntry(e){const c=clone(e);delete c.run;delete c.ht;delete c.bt;
   if(c.parts){c.parts=c.parts.filter(x=>x.done||(x.sides&&x.sides.some(y=>y.done)));return c.parts.length?c:null}if(c.sets){c.sets=c.sets.filter(x=>x.done);return c.sets.length?c:null}return c.done?c:null}
-function spreadWrite(s){ // 세션의 저장한 종목들 → 그날 기록 하나
-  const r=getR(s.rid)||{id:s.rid,name:s.name,color:s.color},items=s.items.filter(e=>e.saved).map(e=>{const c=cleanEntry(e);if(c)c.at=typeof e.saved==='string'?e.saved:hhmm();return c}).filter(Boolean);
+function spreadWrite(s){const r=getR(s.rid)||{id:s.rid,name:s.name,color:s.color},items=s.items.map(cleanEntry).filter(Boolean);
   let l=s.logId&&D.logs.find(x=>x.id===s.logId);
-  if(!items.length){if(l)D.logs=D.logs.filter(x=>x!==l);s.logId=null;return}
+  if(!items.length){if(l)D.logs=D.logs.filter(x=>x!==l);s.logId=null;return null}
   if(!l){l={id:uid(),date:s.date,rid:r.id,name:r.name,color:r.color,routines:[{id:r.id,name:r.name,color:r.color}],dur:null,memo:'',photo:null,spread:true,bw:s.bw};D.logs.push(l);s.logId=l.id}
-  Object.assign(l,{items,memo:s.memo||'',part:items.length<s.items.length,total:s.items.length})}
-function spreadCtl(e,i){const s=D.session;if(!s||!s.spread)return '';
-  if(e.saved)return `<div class="spbar saved"><span class="grow">✓ <b>${typeof e.saved==='string'?e.saved:''}</b> 저장됨</span><button class="btn small ghost" data-a="spEdit" data-i="${i}">고치기</button></div>`;
-  const [d,t]=entryProg(e);
-  return `<div class="spbar"><span class="grow">${d?`${d}/${t} 체크함`:'이 종목만 따로 저장해요'}</span><button class="btn small primary" data-a="spSave" data-i="${i}" ${d?'':'disabled'}>이 종목 완료 · 저장</button></div>`}
-// 저장된 기록을 운동 화면으로 열기: 수정(editLogId) 또는 다른 날짜로 복사
+  const [d,t]=sessionProgress(s);Object.assign(l,{items,memo:s.memo||'',part:d<t,prog:[d,t],snap:clone(s.items).map(e=>{delete e.run;delete e.ht;delete e.bt;return e})});return l}
 function openLog(l,mode){const s={rid:l.rid,rids:logRoutines(l).map(r=>r.id),name:l.name,color:l.color,bw:l.bw??D.body.kg,date:mode==='edit'?l.date:today(),
   start:null,past:true,dur:l.dur??'',memo:mode==='edit'?(l.memo||''):'',items:clone(l.items)};if(mode==='edit'){s.editLogId=l.id;s.manual=!!l.manual}
   D.session=s;UI.view='today';save();scrollTo(0,0)}
@@ -959,8 +944,11 @@ function sessionProgress(s){let tot=0,done=0;
   s.items.forEach(e=>{if(e.parts){tot+=e.parts.length;done+=e.parts.filter(p=>p.done).length;return}if(e.sets){tot+=e.sets.length;done+=e.sets.filter(x=>x.done).length}else{tot++;done+=e.done?1:0}});return [done,tot]}
 function viewSession(){
   const s=D.session;const [done,tot]=sessionProgress(s);
-  const sp=s.spread,[sd,st]=sp?spreadProg(s):[0,0];
-  return `<div class="head"><span class="eyebrow">${dateLabel(s.date)}${s.editLogId?' · 기록 수정':s.past?' · 지난 기록 입력':''}</span><h1>${esc(s.name)}</h1></div>
+  const sp=s.spread;
+  return `<div class="sbar big" role="status"><div class="in"><div class="top">${sp?'<div class="sfmode">틈틈이</div>':s.past?`<div class="cnt">${s.editLogId?'수정':'기록'} · ${s.date.slice(5).replace('-','/')}</div>`:'<div class="clock" id="sb-time" aria-label="운동 시간">0:00</div>'}
+    <div class="progress"><i style="width:${tot?done/tot*100:0}%"></i></div><div class="cnt">${done}/${tot}<span class="sub"> 완료</span></div></div>
+    <div class="ivmini" id="sb-iv" hidden></div></div></div><div class="sbar-space" id="sb-space" style="height:${lastBarH}px"></div>
+  <div class="head"><span class="eyebrow">${dateLabel(s.date)}${s.editLogId?' · 기록 수정':s.past?' · 지난 기록 입력':''}</span><h1>${esc(s.name)}</h1></div>
   ${s.past?`<div class="card"><div class="grid two"><div class="field"><label for="sdate">날짜</label><input class="inp" type="date" id="sdate" max="${today()}" value="${s.date}" data-in="sdate" data-ch="sdate"></div>
     <div class="field"><label for="sdur">운동 시간 (분, 모르면 비워 두기)</label><input class="inp n" id="sdur" inputmode="numeric" value="${s.dur??''}" data-in="sdur"></div></div></div>`:''}
   ${(()=>{const keys=[...new Set(s.items.map(e=>secKey(e,s)))];const multi=keys.length>1;const prog={};
@@ -971,16 +959,12 @@ function viewSession(){
         const nm=k==='_warm'?'워밍업':k==='_cool'?'정리운동':k==='_extra'?'추가한 종목':k==='_blk'?'묶음':(r?r.name:'');
         out+=`<button class="sec-head" data-a="secTog" data-k="${esc(k)}" data-c="${closed?1:0}" aria-expanded="${!closed}"><span>${closed?'▸':'▾'}</span><span class="swatch" style="background:${r?r.color:'#7A8494'}"></span>${esc(nm)} <span class="sub num">${d}/${t}${full?' · 완료':''}</span></button>`}
       if(multi&&closed)return;
-      out+=(e.kind==='block'?blockCard(e,i):e.mode==='interval'?intervalCard(e,i):setsCard(e,i))+spreadCtl(e,i)});return out})()}
+      out+=(e.kind==='block'?blockCard(e,i):e.mode==='interval'?intervalCard(e,i):setsCard(e,i))});return out})()}
   ${s.spread?`<button class="btn block" data-a="sessAddSheet">+ 종목 추가</button>`:`<div class="grid two"><button class="btn" data-a="appendSheet">+ 루틴 이어 붙이기</button><button class="btn" data-a="sessAddSheet">+ 종목 추가</button></div>`}
   <div class="card"><label class="eyebrow" for="memo">메모</label>
     <textarea id="memo" class="inp" data-in="memo" placeholder="컨디션, 자극 부위 등">${esc(s.memo||'')}</textarea></div>
-  <div class="sticky-foot"><div class="sfoot" role="status">
-    <div class="sftop">${sp?`<div class="sfmode">틈틈이</div>`:s.past?`<div class="sfmode">${s.editLogId?'수정':'기록'} · ${s.date.slice(5).replace('-','/')}</div>`:'<div class="clock" id="sb-time" aria-label="운동 시간">0:00</div>'}
-      <div class="progress"><i style="width:${sp?(st?sd/st*100:0):(tot?done/tot*100:0)}%"></i></div><div class="cnt">${sp?`${sd}/${st}<span class="sub"> 종목 저장</span>`:`${done}/${tot}<span class="sub"> 완료</span>`}</div></div>
-    <div class="ivmini" id="sb-iv" hidden></div>
-    ${sp?`<button class="btn block" data-a="spClose">닫기 · 저장한 종목은 기록돼 있어요</button>`:`<button class="btn primary block" data-a="finish">${s.editLogId?'수정 내용 저장':s.past?'이 날짜에 기록 저장':'운동 완료하고 저장'}</button>`}</div></div>
-  ${sp?'':`<button class="btn ghost" data-a="askCancel">${s.editLogId?'수정 취소':s.past?'입력 취소':'운동 중단'}</button>`}`;
+  <div class="sticky-foot">${sp?`<button class="btn primary block" data-a="spSave">${done&&done===tot?'운동 완료하고 저장':'지금까지 한 것 저장'}</button>`:`<button class="btn primary block" data-a="finish">${s.editLogId?'수정 내용 저장':s.past?'이 날짜에 기록 저장':'운동 완료하고 저장'}</button>`}</div>
+  ${sp?`<p class="sub" style="text-align:center;margin:8px 0">저장하고 나가도 오늘 다시 ▶ 이어서 하기로 체크한 곳부터 계속할 수 있어요.</p><button class="btn ghost" data-a="askCancel">저장하지 않고 닫기</button>`:`<button class="btn ghost" data-a="askCancel">${s.editLogId?'수정 취소':s.past?'입력 취소':'운동 중단'}</button>`}`;
 }
 // 다음에 할 것: 첫 미완료 항목, 좌우 항목이면 그 안의 첫 미완료 쪽
 function nextStep(e){for(let k=0;k<e.parts.length;k++){const p=e.parts[k];if(p.done)continue;if(p.sides){const j=p.sides.findIndex(x=>!x.done);if(j>=0)return {k,j}}return {k,j:-1}}return null}
@@ -1554,13 +1538,10 @@ const A={
     D.session=null;keepAwake(false);save();UI.selDate=log.date;const dt=new Date(log.date+'T00:00');UI.month=[dt.getFullYear(),dt.getMonth()];
     if(s.past){UI.view='history';toast(s.editLogId?'기록을 수정했어요':`${dateLabel(log.date)}에 기록했어요`)}
     else{UI.undo=UI.undo||{};UI.undo[log.id]=s;toast(wantsPhoto(log)?'저장했어요. 완료 줄의 \'오운완\'으로 사진을 붙일 수 있어요.':'저장했어요. 수고했어요!');const up=levelUps(log);if(up.length)UI.sheet={kind:'lvup',list:up}}scrollTo(0,0)},
-  spSave:d=>{const s=D.session,e=s.items[+d.i];if(!cleanEntry(e)){toast('완료 체크한 세트가 없어요');return}e.saved=hhmm();spreadWrite(s);save();
-    const [a,b]=spreadProg(s);toast(a<b?`${e.name} 저장 (${e.saved}). 앱을 닫았다가 나중에 이어서 해도 돼요.`:`${e.name} 저장. 오늘 ${s.name} 다 했어요!`);
-    if(a===b){const l=D.logs.find(x=>x.id===s.logId);const up=l?levelUps(l):[];if(up.length)UI.sheet={kind:'lvup',list:up}}},
-  spEdit:d=>{const s=D.session,e=s.items[+d.i];delete e.saved;spreadWrite(s);save()},
-  spClose:()=>{const s=D.session;spreadWrite(s);D.session=null;keepAwake(false);save();UI.view='today';scrollTo(0,0);
-    const [a,b]=spreadProg(s);toast(a?`${a}/${b} 종목 저장해 뒀어요. 오늘 다시 ▶ 이어서 하기를 누르면 돼요.`:'닫았어요')},
-  askCancel:()=>{const s=D.session;UI.sheet={kind:'confirm',text:s.editLogId?'수정한 내용을 버리고 원래 기록으로 둘까요?':s.past?'입력한 내용을 저장하지 않고 닫을까요?':'기록하지 않고 운동을 중단할까요?',ok:'cancelOk',okLabel:s.editLogId?'수정 취소':s.past?'닫기':'중단하기'}},
+  spSave:()=>{const s=D.session,l=spreadWrite(s);if(!l){toast('체크한 세트가 없어요');return}D.session=null;keepAwake(false);save();UI.view='today';scrollTo(0,0);
+    if(l.part)toast(`지금까지 한 것(${l.prog[0]}/${l.prog[1]})을 저장했어요. 오늘 다시 ▶ 이어서 하기로 계속해요.`);
+    else{UI.undo=UI.undo||{};toast('저장했어요. 수고했어요!');const up=levelUps(l);if(up.length)UI.sheet={kind:'lvup',list:up}}},
+  askCancel:()=>{const s=D.session;UI.sheet={kind:'confirm',text:s.spread?'이번에 체크한 것을 저장하지 않고 닫을까요? 전에 저장한 것은 그대로 남아요.':s.editLogId?'수정한 내용을 버리고 원래 기록으로 둘까요?':s.past?'입력한 내용을 저장하지 않고 닫을까요?':'기록하지 않고 운동을 중단할까요?',ok:'cancelOk',okLabel:s.spread?'닫기':s.editLogId?'수정 취소':s.past?'닫기':'중단하기'}},
   cancelOk:()=>{const past=D.session&&D.session.past;D.session=null;keepAwake(false);save();UI.sheet=null;if(past)UI.view='history'},
   ivDone:d=>{const e=D.session.items[d.i];e.done=!e.done;save()},
   sessAddSheet:()=>{UI.addQ='';UI.addAct='sessAdd';UI.sheet={kind:'addItem'}},
